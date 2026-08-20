@@ -575,7 +575,6 @@ ChatWidget::ChatWidget(
 			.repliesRootId = _repliesRootId,
 			.topic = _topic,
 			.sublist = _sublist,
-			.monoforumPeerId = _monoforumPeerId,
 			.scroll = _scroll.get(),
 			.list = _inner.data(),
 			.keyboardReservedHeight = [=] {
