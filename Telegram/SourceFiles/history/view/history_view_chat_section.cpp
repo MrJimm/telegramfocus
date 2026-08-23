@@ -5731,7 +5731,7 @@ void ChatWidget::listOpenPhoto(
 		photo,
 		{
 			context,
-			(item && !_monoforumPeerId)
+			(item && _peer->isForum())
 				? item->topicRootId()
 				: _repliesRootId,
 			_monoforumPeerId,
@@ -5753,7 +5753,7 @@ void ChatWidget::listOpenDocument(
 		showInMediaView,
 		{
 			context,
-			(item && !_monoforumPeerId)
+			(item && _peer->isForum())
 				? item->topicRootId()
 				: _repliesRootId,
 			_monoforumPeerId,
