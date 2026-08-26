@@ -1635,6 +1635,18 @@ SessionController::SessionController(
 				ShowCommunityAdminBox(this, community);
 			});
 		}, _lifetime);
+		const auto showRestrictedAllowlistWarning = [=] {
+			showToast(u"Allowlist config is invalid or unreadable. "
+				"Check restricted-allowlist.json. Only Saved Messages remains "
+				"visible until it is fixed."_q);
+		};
+		session->restrictedAllowlistInvalidTransitions(
+		) | rpl::on_next([=] {
+			showRestrictedAllowlistWarning();
+		}, _lifetime);
+		if (session->restrictedAllowlistHasInvalidConfig()) {
+			showRestrictedAllowlistWarning();
+		}
 	}
 
 	_authedName = session->user()->name();

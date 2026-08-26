@@ -413,6 +413,15 @@ rpl::producer<> Session::restrictedAllowlistChanges() const {
 	return _restrictedAllowlist->changes();
 }
 
+bool Session::restrictedAllowlistHasInvalidConfig() const {
+	return (_restrictedAllowlist->readState()
+		== RestrictedAllowlistReadState::Invalid);
+}
+
+rpl::producer<> Session::restrictedAllowlistInvalidTransitions() const {
+	return _restrictedAllowlist->invalidTransitions();
+}
+
 bool Session::validateSelf(UserId id) {
 	if (id != userId()) {
 		LOG(("Auth Error: wrong self user received."));

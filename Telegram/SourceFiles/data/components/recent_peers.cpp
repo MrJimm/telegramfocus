@@ -173,7 +173,7 @@ std::vector<not_null<Thread*>> RecentPeers::collectChatOpenHistory() const {
 
 void RecentPeers::chatOpenPush(not_null<Thread*> thread) {
 	if (!IsAllowedThread(_session, thread)) {
-		chatOpenDestroyed(thread);
+		chatOpenRemove(thread);
 		return;
 	}
 	const auto i = ranges::find(_opens, thread);

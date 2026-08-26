@@ -130,12 +130,36 @@ void AppendParsedIds(
 	const auto boundUsername = account.value(kUsernameKey).toString().trimmed();
 	const auto boundSessionUniqueId = account.value(
 		kSessionUniqueIdKey).toString().trimmed();
-	const auto usernameMatches = !username.isEmpty()
+	if (!boundSessionUniqueId.isEmpty()) {
+		return (boundSessionUniqueId == sessionUniqueId);
+	}
+	return !username.isEmpty()
 		&& !boundUsername.isEmpty()
 		&& !boundUsername.compare(username, Qt::CaseInsensitive);
-	const auto sessionMatches = !boundSessionUniqueId.isEmpty()
-		&& (boundSessionUniqueId == sessionUniqueId);
-	return usernameMatches || sessionMatches;
+}
+
+[[nodiscard]] int FindProfileIndex(
+		not_null<const Session*> session,
+		const QJsonArray &profiles) {
+	for (auto i = 0; i != profiles.size(); ++i) {
+		const auto account = profiles.at(i).toObject().value(kAccountKey).toObject();
+		const auto boundSessionUniqueId = account.value(
+			kSessionUniqueIdKey).toString().trimmed();
+		if (!boundSessionUniqueId.isEmpty()
+			&& MatchesAccount(session, account)) {
+			return i;
+		}
+	}
+	for (auto i = 0; i != profiles.size(); ++i) {
+		const auto account = profiles.at(i).toObject().value(kAccountKey).toObject();
+		const auto boundSessionUniqueId = account.value(
+			kSessionUniqueIdKey).toString().trimmed();
+		if (boundSessionUniqueId.isEmpty()
+			&& MatchesAccount(session, account)) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 [[nodiscard]] bool LooksLikeLegacyProfile(const QJsonObject &object) {
@@ -243,12 +267,14 @@ void AppendParsedIds(
 	return true;
 }
 
-[[nodiscard]] std::optional<base::flat_set<quint64>> ReadFolderImportedPeers(
+[[nodiscard]] RestrictedAllowlistFolderImportResult ReadFolderImportedPeers(
 		not_null<const Session*> session,
 		const QString &folderName) {
 	const auto &filters = session->data().chatsFilters();
 	if (!filters.loaded()) {
-		return std::nullopt;
+		return {
+			.state = RestrictedAllowlistFolderImportState::Loading,
+		};
 	}
 	for (const auto &filter : filters.list()) {
 		if (!filter.id()) {
@@ -262,9 +288,14 @@ void AppendParsedIds(
 		for (const auto &history : filter.always()) {
 			result.emplace(SerializePeerId(history->peer->id));
 		}
-		return result;
+		return {
+			.state = RestrictedAllowlistFolderImportState::Present,
+			.ids = std::move(result),
+		};
 	}
-	return std::nullopt;
+	return {
+		.state = RestrictedAllowlistFolderImportState::Missing,
+	};
 }
 
 [[nodiscard]] bool WriteConfigFile(
@@ -301,7 +332,7 @@ RestrictedAllowlist::RestrictedAllowlist(not_null<Session*> session)
 		&QFileSystemWatcher::directoryChanged,
 		[=](const QString &) { scheduleReload(); });
 	_session->data().chatsFilters().changed(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		scheduleReload();
 	}, _lifetime);
 }
@@ -328,17 +359,27 @@ rpl::producer<> RestrictedAllowlist::changes() const {
 	return _changes.events();
 }
 
+RestrictedAllowlistReadState RestrictedAllowlist::readState() const {
+	return _readState;
+}
+
+rpl::producer<> RestrictedAllowlist::invalidTransitions() const {
+	return _invalidTransitions.events();
+}
+
 void RestrictedAllowlist::scheduleReload() {
 	_reloadTimer.callOnce(kReloadDebounce);
 }
 
 void RestrictedAllowlist::reload() {
 	refreshWatcherPaths();
-	const auto parsed = readFile();
-	if (!parsed || (*parsed == _allowedSerializedPeerIds)) {
+	const auto result = readFile();
+	updateReadState(result.state);
+	if (result.state == RestrictedAllowlistReadState::NotReady
+		|| result.ids == _allowedSerializedPeerIds) {
 		return;
 	}
-	apply(*parsed);
+	apply(result.ids);
 }
 
 void RestrictedAllowlist::refreshWatcherPaths() {
@@ -365,17 +406,17 @@ void RestrictedAllowlist::apply(
 	_changes.fire({});
 }
 
-	void RestrictedAllowlist::refreshVisibleState() {
-		const auto refreshHistory = [&](not_null<PeerData*> peer) {
-			if (const auto history = _session->data().historyLoaded(peer)) {
-				if (!_session->isRestrictedPeerAllowed(peer)) {
-					Core::App().notifications().clearFromHistory(history);
-					history->updateChatListExistence();
-				} else {
-					history->updateChatListSortPosition();
-				}
+void RestrictedAllowlist::refreshVisibleState() {
+	const auto refreshHistory = [&](not_null<PeerData*> peer) {
+		if (const auto history = _session->data().historyLoaded(peer)) {
+			if (!_session->isRestrictedPeerAllowed(peer)) {
+				Core::App().notifications().clearFromHistory(history);
+				history->updateChatListExistence();
+			} else {
+				history->updateChatListSortPosition();
 			}
-		};
+		}
+	};
 	_session->data().enumerateUsers([&](not_null<UserData*> peer) {
 		refreshHistory(not_null<PeerData*>(peer.get()));
 	});
@@ -396,14 +437,26 @@ void RestrictedAllowlist::refreshOpenWindows() {
 	}
 }
 
-std::optional<base::flat_set<quint64>> RestrictedAllowlist::readFile() const {
+void RestrictedAllowlist::updateReadState(RestrictedAllowlistReadState state) {
+	const auto wasInvalid = (_readState == RestrictedAllowlistReadState::Invalid);
+	_readState = state;
+	if (!wasInvalid && (_readState == RestrictedAllowlistReadState::Invalid)) {
+		_invalidTransitions.fire({});
+	}
+}
+
+RestrictedAllowlistReadResult RestrictedAllowlist::readFile() const {
 	const auto filePath = path();
 	auto root = QJsonObject();
 	auto changed = false;
 	if (QFileInfo(filePath).isFile()) {
 		QFile file(filePath);
 		if (!file.open(QIODevice::ReadOnly)) {
-			return std::nullopt;
+			LOG(("RestrictedAllowlist Error: could not open config '%1', "
+				"failing closed.").arg(filePath));
+			return {
+				.state = RestrictedAllowlistReadState::Invalid,
+			};
 		}
 		const auto bytes = file.readAll();
 		file.close();
@@ -411,7 +464,11 @@ std::optional<base::flat_set<quint64>> RestrictedAllowlist::readFile() const {
 		auto error = QJsonParseError();
 		const auto document = QJsonDocument::fromJson(bytes, &error);
 		if (error.error != QJsonParseError::NoError || !document.isObject()) {
-			return std::nullopt;
+			LOG(("RestrictedAllowlist Error: invalid config '%1': %2, "
+				"failing closed.").arg(filePath, error.errorString()));
+			return {
+				.state = RestrictedAllowlistReadState::Invalid,
+			};
 		}
 		root = document.object();
 	}
@@ -423,14 +480,7 @@ std::optional<base::flat_set<quint64>> RestrictedAllowlist::readFile() const {
 		changed = true;
 	}
 
-	auto selected = -1;
-	for (auto i = 0; i != profiles.size(); ++i) {
-		const auto profile = profiles.at(i).toObject();
-		if (MatchesAccount(_session, profile.value(kAccountKey).toObject())) {
-			selected = i;
-			break;
-		}
-	}
+	auto selected = FindProfileIndex(_session, profiles);
 	if (selected < 0) {
 		selected = profiles.size();
 		profiles.push_back(QJsonObject());
@@ -442,12 +492,24 @@ std::optional<base::flat_set<quint64>> RestrictedAllowlist::readFile() const {
 		changed = true;
 	}
 	if (SyncFromFolderEnabled(profile)) {
-		if (const auto imported = ReadFolderImportedPeers(
-				_session,
-				ProfileFolderName(profile))) {
-			if (UpdateImportedPeers(&profile, *imported)) {
-				changed = true;
-			}
+		const auto imported = ReadFolderImportedPeers(
+			_session,
+			ProfileFolderName(profile));
+		if (imported.state == RestrictedAllowlistFolderImportState::Loading) {
+			return {
+				.state = RestrictedAllowlistReadState::NotReady,
+			};
+		}
+		const auto importedChanged = UpdateImportedPeers(&profile, imported.ids);
+		if (importedChanged) {
+			changed = true;
+		}
+		if (imported.state == RestrictedAllowlistFolderImportState::Missing
+			&& importedChanged) {
+			LOG(("RestrictedAllowlist Info: folder '%1' not found for "
+				"session %2, imported peers cleared.").arg(
+					ProfileFolderName(profile),
+					CurrentSessionUniqueId(_session)));
 		}
 	}
 
@@ -459,10 +521,14 @@ std::optional<base::flat_set<quint64>> RestrictedAllowlist::readFile() const {
 		root.insert(kProfilesKey, profiles);
 		changed = true;
 	}
-	if (changed) {
-		WriteConfigFile(filePath, root);
+	if (changed && !WriteConfigFile(filePath, root)) {
+		LOG(("RestrictedAllowlist Error: could not write config '%1'.")
+			.arg(filePath));
 	}
-	return ParseProfilePeerIds(_session, profile);
+	return {
+		.state = RestrictedAllowlistReadState::Loaded,
+		.ids = ParseProfilePeerIds(_session, profile),
+	};
 }
 
 } // namespace Main

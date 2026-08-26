@@ -144,6 +144,8 @@ public:
 		not_null<const PeerData*> peer) const;
 	[[nodiscard]] QString restrictedAllowlistPath() const;
 	[[nodiscard]] rpl::producer<> restrictedAllowlistChanges() const;
+	[[nodiscard]] bool restrictedAllowlistHasInvalidConfig() const;
+	[[nodiscard]] rpl::producer<> restrictedAllowlistInvalidTransitions() const;
 	[[nodiscard]] not_null<UserData*> user() const {
 		return _user;
 	}

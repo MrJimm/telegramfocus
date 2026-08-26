@@ -380,10 +380,12 @@ InnerWidget::InnerWidget(
 	setupOnlineStatusCheck();
 
 	session().restrictedAllowlistChanges(
-	) | rpl::start_with_next([=] {
+	) | rpl::on_next([=] {
 		clearFilter();
 		refresh(true);
 	}, lifetime());
+	clearFilter();
+	refresh(true);
 
 	rpl::merge(
 		session().data().chatsListChanges(),

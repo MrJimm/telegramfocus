@@ -1445,8 +1445,9 @@ void ShareBox::Inner::chooseForumTopic(not_null<Data::Forum*> forum) {
 			box->closeBox();
 		}, box->lifetime());
 	};
-	auto filter = [=](not_null<Data::ForumTopic*> topic) {
-		return guard && passesFilter(topic);
+	auto filter = [=](not_null<Data::Thread*> thread) {
+		const auto topic = thread->asTopic();
+		return guard && topic && passesFilter(topic);
 	};
 	auto box = Box<PeerListBox>(
 		std::make_unique<ChooseTopicBoxController>(
