@@ -170,6 +170,12 @@ base::options::toggle OptionForumHideChatsList({
 	return result;
 }
 
+[[nodiscard]] bool IsAllowedStoriesPeer(
+		not_null<Main::Session*> session,
+		not_null<const PeerData*> peer) {
+	return peer->isSelf() || session->isRestrictedPeerAllowed(peer);
+}
+
 } // namespace
 
 const char kOptionForumHideChatsList[] = "forum-hide-chats-list";
@@ -981,9 +987,13 @@ void Widget::chosenRow(const ChosenRow &row) {
 		if (row.userpicClick) {
 			const auto list = Data::StorySourcesList::Hidden;
 			const auto &sources = session().data().stories().sources(list);
-			if (!sources.empty()) {
-				controller()->openPeerStories(sources.front().id, list);
-				return;
+			for (const auto &source : sources) {
+				if (const auto peer = session().data().peerLoaded(source.id)) {
+					if (IsAllowedStoriesPeer(&session(), peer)) {
+						controller()->openPeerStories(source.id, list);
+						return;
+					}
+				}
 			}
 		}
 		if (row.newWindow) {
@@ -1931,6 +1941,9 @@ void Widget::collectStoriesUserpicsViews(Data::StorySourcesList list) {
 	auto &owner = session().data();
 	for (const auto &source : owner.stories().sources(list)) {
 		if (const auto peer = owner.peerLoaded(source.id)) {
+			if (!IsAllowedStoriesPeer(&session(), peer)) {
+				continue;
+			}
 			if (auto view = peer->activeUserpicView(); view.cloud) {
 				map.emplace(source.id, std::move(view));
 			}

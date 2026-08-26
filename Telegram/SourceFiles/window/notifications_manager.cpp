@@ -69,6 +69,11 @@ constexpr auto kSystemAlertDuration = crl::time(0);
 	return result;
 }
 
+[[nodiscard]] bool IsAllowedNotificationThread(
+		not_null<Data::Thread*> thread) {
+	return thread->session().isRestrictedPeerAllowed(thread->peer());
+}
+
 [[nodiscard]] QString TextWithForwardedChar(
 		const QString &text,
 		bool forwarded) {
@@ -262,8 +267,10 @@ System::SkipState System::skipNotification(
 		Data::ItemNotification notification) const {
 	const auto item = notification.item;
 	const auto type = notification.type;
+	const auto thread = item->notificationThread();
 	const auto messageType = (type == Data::ItemNotificationType::Message);
-	if (!item->notificationThread()->currentNotification()
+	if (!IsAllowedNotificationThread(thread)
+		|| !thread->currentNotification()
 		|| (messageType && item->skipNotification())
 		|| (type == Data::ItemNotificationType::Reaction
 			&& skipReactionNotification(item))) {
@@ -1196,6 +1203,9 @@ void Manager::notificationActivated(
 	if (const auto session = system()->findSession(id.contextId.sessionId)) {
 		const auto history = session->data().history(
 			id.contextId.peerId);
+		if (!session->isRestrictedPeerAllowed(history->peer)) {
+			return;
+		}
 		const auto item = history->owner().message(
 			history->peer,
 			id.msgId);

@@ -117,6 +117,12 @@ namespace {
 constexpr auto kCustomThemesInMemory = 5;
 constexpr auto kMaxChatEntryHistorySize = 50;
 
+[[nodiscard]] bool IsAllowedStoriesPeer(
+		not_null<Main::Session*> session,
+		not_null<const PeerData*> peer) {
+	return peer->isSelf() || session->isRestrictedPeerAllowed(peer);
+}
+
 class MainWindowShow final : public ChatHelpers::Show {
 public:
 	explicit MainWindowShow(not_null<SessionController*> controller);
@@ -402,17 +408,25 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 	Core::App().hideMediaView();
 	if (!info.phone.isEmpty()) {
 		resolvePhone(info.phone, [=](not_null<PeerData*> peer) {
-			showPeerByLinkResolved(peer, info);
+			if (_session->isRestrictedPeerAllowed(peer)) {
+				showPeerByLinkResolved(peer, info);
+			}
 		});
 	} else if (!info.chatLinkSlug.isEmpty()) {
 		resolveChatLink(info.chatLinkSlug, [=](
 				not_null<PeerData*> peer,
 				TextWithEntities draft) {
+			if (!_session->isRestrictedPeerAllowed(peer)) {
+				return;
+			}
 			Data::SetChatLinkDraft(peer, draft);
 			showPeerByLinkResolved(peer, info);
 		});
 	} else if (const auto name = std::get_if<QString>(&info.usernameOrId)) {
 		resolveUsername(*name, [=](not_null<PeerData*> peer) {
+			if (!_session->isRestrictedPeerAllowed(peer)) {
+				return;
+			}
 			if (info.startAutoSubmit) {
 				peer->session().api().blockedPeers().unblock(
 					peer,
@@ -426,7 +440,9 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 		}, info.referral);
 	} else if (const auto id = std::get_if<ChannelId>(&info.usernameOrId)) {
 		resolveChannelById(*id, [=](not_null<ChannelData*> channel) {
-			showPeerByLinkResolved(channel, info);
+			if (_session->isRestrictedPeerAllowed(channel)) {
+				showPeerByLinkResolved(channel, info);
+			}
 		});
 	}
 }
@@ -586,6 +602,9 @@ void SessionNavigation::showMessageByLinkResolved(
 void SessionNavigation::showPeerByLinkResolved(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info) {
+	if (!_session->isRestrictedPeerAllowed(peer)) {
+		return;
+	}
 	auto params = SectionShow{
 		SectionShow::Way::Forward
 	};
@@ -1354,6 +1373,9 @@ void SessionNavigation::showThread(
 void SessionNavigation::showPeerInfo(
 		not_null<PeerData*> peer,
 		const SectionShow &params) {
+	if (!_session->isRestrictedPeerAllowed(peer)) {
+		return;
+	}
 	//if (Adaptive::ThreeColumn()
 	//	&& !Core::App().settings().thirdSectionInfoEnabled()) {
 	//	Core::App().settings().setThirdSectionInfoEnabled(true);
@@ -2850,6 +2872,9 @@ void SessionController::showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId msgId) {
+	if (peerId && !session().isRestrictedPeerAllowed(peerId)) {
+		return;
+	}
 	content()->showHistory(peerId, params, msgId);
 }
 
@@ -3486,6 +3511,9 @@ void SessionController::openPeerStory(
 	using namespace Media::View;
 	using namespace Data;
 
+	if (!IsAllowedStoriesPeer(&session(), peer)) {
+		return;
+	}
 	invalidate_weak_ptrs(&_storyOpenGuard);
 	auto &stories = session().data().stories();
 	const auto from = stories.lookup({ peer->id, storyId });
@@ -3508,6 +3536,9 @@ void SessionController::openPeerStories(
 	invalidate_weak_ptrs(&_storyOpenGuard);
 	auto &stories = session().data().stories();
 	if (const auto source = stories.source(peerId)) {
+		if (!IsAllowedStoriesPeer(&session(), source->peer)) {
+			return;
+		}
 		if (const auto idDates = source->toOpen()) {
 			openPeerStory(
 				source->peer,
@@ -3517,6 +3548,9 @@ void SessionController::openPeerStories(
 					: StoriesContext{ StoriesContextPeer() }));
 		}
 	} else if (const auto peer = session().data().peerLoaded(peerId)) {
+		if (!IsAllowedStoriesPeer(&session(), peer)) {
+			return;
+		}
 		const auto done = crl::guard(&_storyOpenGuard, [=] {
 			openPeerStories(peerId, list);
 		});

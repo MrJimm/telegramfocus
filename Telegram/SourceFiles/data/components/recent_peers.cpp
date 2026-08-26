@@ -21,6 +21,18 @@ namespace {
 constexpr auto kLimit = 48;
 constexpr auto kMaxRememberedOpenChats = 32;
 
+[[nodiscard]] bool IsAllowedPeer(
+		not_null<const Main::Session*> session,
+		not_null<PeerData*> peer) {
+	return session->isRestrictedPeerAllowed(peer);
+}
+
+[[nodiscard]] bool IsAllowedThread(
+		not_null<const Main::Session*> session,
+		not_null<Thread*> thread) {
+	return session->isRestrictedPeerAllowed(thread->peer());
+}
+
 } // namespace
 
 RecentPeers::RecentPeers(not_null<Main::Session*> session)
@@ -31,8 +43,13 @@ RecentPeers::~RecentPeers() = default;
 
 const std::vector<not_null<PeerData*>> &RecentPeers::list() const {
 	_session->local().readSearchSuggestions();
-
-	return _list;
+	auto &self = *const_cast<RecentPeers*>(this);
+	self._list.erase(
+		ranges::remove_if(self._list, [&](not_null<PeerData*> peer) {
+			return !IsAllowedPeer(_session, peer);
+		}),
+		end(self._list));
+	return self._list;
 }
 
 rpl::producer<> RecentPeers::updates() const {
@@ -50,6 +67,10 @@ void RecentPeers::remove(not_null<PeerData*> peer) {
 
 void RecentPeers::bump(not_null<PeerData*> peer) {
 	_session->local().readSearchSuggestions();
+	if (!IsAllowedPeer(_session, peer)) {
+		remove(peer);
+		return;
+	}
 
 	if (!_list.empty() && _list.front() == peer) {
 		return;
@@ -121,9 +142,9 @@ void RecentPeers::applyLocal(QByteArray serialized) {
 			_session,
 			streamAppVersion,
 			stream);
-		if (stream.ok() && peer) {
+		if (stream.ok() && peer && IsAllowedPeer(_session, peer)) {
 			_list.push_back(peer);
-		} else {
+		} else if (!(stream.ok() && peer)) {
 			_list.clear();
 			DEBUG_LOG(("Suggestions: Failed RecentPeers reading %1 / %2."
 				).arg(i + 1
@@ -139,10 +160,21 @@ void RecentPeers::applyLocal(QByteArray serialized) {
 
 std::vector<not_null<Thread*>> RecentPeers::collectChatOpenHistory() const {
 	_session->local().readSearchSuggestions();
-	return _opens;
+	auto result = std::vector<not_null<Thread*>>();
+	result.reserve(_opens.size());
+	for (const auto &thread : _opens) {
+		if (IsAllowedThread(_session, thread)) {
+			result.push_back(thread);
+		}
+	}
+	return result;
 }
 
 void RecentPeers::chatOpenPush(not_null<Thread*> thread) {
+	if (!IsAllowedThread(_session, thread)) {
+		chatOpenDestroyed(thread);
+		return;
+	}
 	const auto i = ranges::find(_opens, thread);
 	if (i == end(_opens)) {
 		while (_opens.size() >= kMaxRememberedOpenChats) {

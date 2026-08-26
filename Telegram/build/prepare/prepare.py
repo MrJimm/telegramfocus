@@ -1757,6 +1757,7 @@ stage('tg_owt', """
     cd tg_owt
     git checkout 62321fd
     git submodule update --init --recursive
+    perl -0pi -e 's/void set_type\\(absl::string_view type ABSL_ATTRIBUTE_LIFETIME_BOUND\\)/void set_type(absl::string_view type)/' src/api/candidate.h
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
     SET OPUS_PATH=$USED_PREFIX/include/opus

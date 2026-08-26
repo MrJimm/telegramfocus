@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_user_privacy.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
+#include "main/main_restricted_allowlist.h"
 #include "main/main_session_settings.h"
 #include "main/main_app_config.h"
 #include "main/session/send_as_peers.h"
@@ -121,11 +122,14 @@ Session::Session(
 , _locationPickers(std::make_unique<Data::LocationPickers>())
 , _credits(std::make_unique<Data::Credits>(this))
 , _promoSuggestions(std::make_unique<Data::PromoSuggestions>(this))
+, _restrictedAllowlist(std::make_unique<RestrictedAllowlist>(this))
 , _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
 , _supportHelper(Support::Helper::Create(this))
 , _fastButtonsBots(std::make_unique<Support::FastButtonsBots>(this))
 , _saveSettingsTimer([=] { saveSettings(); }) {
 	Expects(_settings != nullptr);
+
+	_restrictedAllowlist->start();
 
 	_api->requestTermsUpdate();
 	_api->requestFullPeer(_user);
@@ -325,6 +329,22 @@ UserId Session::userId() const {
 
 PeerId Session::userPeerId() const {
 	return _userId;
+}
+
+bool Session::isRestrictedPeerAllowed(PeerId peerId) const {
+	return _restrictedAllowlist->isAllowed(peerId);
+}
+
+bool Session::isRestrictedPeerAllowed(not_null<const PeerData*> peer) const {
+	return isRestrictedPeerAllowed(peer->id);
+}
+
+QString Session::restrictedAllowlistPath() const {
+	return _restrictedAllowlist->path();
+}
+
+rpl::producer<> Session::restrictedAllowlistChanges() const {
+	return _restrictedAllowlist->changes();
 }
 
 bool Session::validateSelf(UserId id) {

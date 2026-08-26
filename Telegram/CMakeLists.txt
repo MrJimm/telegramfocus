@@ -1172,6 +1172,8 @@ PRIVATE
     main/main_app_config_values.h
     main/main_domain.cpp
     main/main_domain.h
+    main/main_restricted_allowlist.cpp
+    main/main_restricted_allowlist.h
     main/main_session.cpp
     main/main_session.h
     main/main_session_settings.cpp
@@ -1889,6 +1891,7 @@ if (build_macstore)
     set(bundle_identifier "org.telegram.desktop")
     set(bundle_entitlements "Telegram Lite.entitlements")
     set(output_name "Telegram Lite")
+    set(bundle_display_name "Telegram Lite")
     set_target_properties(Telegram PROPERTIES
         XCODE_ATTRIBUTE_FRAMEWORK_SEARCH_PATHS ${libs_loc}/breakpad/src/client/mac/build/Release
     )
@@ -1909,6 +1912,7 @@ else()
     endif()
     set(bundle_entitlements "Telegram.entitlements")
     set(output_name "Telegram")
+    set(bundle_display_name "Telegram Focus")
 endif()
 
 if (CMAKE_GENERATOR STREQUAL Xcode)
@@ -1934,6 +1938,8 @@ set_target_properties(Telegram PROPERTIES
     XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS --deep
     XCODE_ATTRIBUTE_CLANG_DEBUG_INFORMATION_LEVEL $<IF:$<CONFIG:Debug>,default,line-tables-only>
 )
+
+
 set(entitlement_sources
     "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram.entitlements"
     "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram Lite.entitlements"
