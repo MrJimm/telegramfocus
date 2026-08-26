@@ -35,6 +35,12 @@ namespace {
 
 constexpr auto kShownLastCount = 3;
 
+[[nodiscard]] bool IsAllowedStoriesPeer(
+		not_null<Main::Session*> session,
+		not_null<const PeerData*> peer) {
+	return peer->isSelf() || session->isRestrictedPeerAllowed(peer);
+}
+
 class State final {
 public:
 	State(not_null<Data::Stories*> data, Data::StorySourcesList list);
@@ -57,14 +63,17 @@ State::State(not_null<Data::Stories*> data, Data::StorySourcesList list)
 
 Content State::next() {
 	const auto &sources = _data->sources(_list);
-	auto result = Content{ .total = int(sources.size()) };
+	auto result = Content();
 	result.elements.reserve(sources.size());
 	for (const auto &info : sources) {
 		const auto source = _data->source(info.id);
 		Assert(source != nullptr);
 
-		auto userpic = std::shared_ptr<Ui::DynamicImage>();
 		const auto peer = source->peer;
+		if (!IsAllowedStoriesPeer(&peer->session(), peer)) {
+			continue;
+		}
+		auto userpic = std::shared_ptr<Ui::DynamicImage>();
 		if (const auto i = _userpics.find(peer); i != end(_userpics)) {
 			userpic = i->second;
 		} else {
@@ -81,6 +90,7 @@ Content State::next() {
 			.skipSmall = peer->isSelf() ? 1U : 0U,
 		});
 	}
+	result.total = int(result.elements.size());
 	return result;
 }
 

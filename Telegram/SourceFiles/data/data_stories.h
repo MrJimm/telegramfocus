@@ -185,6 +185,7 @@ public:
 	[[nodiscard]] bool sourcesLoaded(StorySourcesList list) const;
 	[[nodiscard]] rpl::producer<> sourcesChanged(
 		StorySourcesList list) const;
+	void refreshRestrictedState();
 	[[nodiscard]] rpl::producer<PeerId> sourceChanged() const;
 	[[nodiscard]] rpl::producer<PeerId> itemsChanged() const;
 

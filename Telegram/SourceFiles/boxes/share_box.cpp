@@ -133,6 +133,8 @@ private:
 	void invalidateCache();
 	bool showLockedError(not_null<Chat*> chat);
 	void refreshRestrictedRows();
+	[[nodiscard]] bool passesRestricted(not_null<Data::Thread*> thread) const;
+	[[nodiscard]] bool passesFilter(not_null<Data::Thread*> thread) const;
 
 	[[nodiscard]] int displayedChatsCount() const;
 	[[nodiscard]] not_null<Data::Thread*> chatThread(
@@ -848,7 +850,7 @@ ShareBox::Inner::Inner(
 
 	const auto self = _descriptor.session->user();
 	const auto selfHistory = self->owner().history(self);
-	if (_descriptor.filterCallback(selfHistory)) {
+	if (passesFilter(selfHistory)) {
 		_defaultChatsIndexed->addToEnd(selfHistory);
 	}
 	const auto addList = [&](not_null<Dialogs::IndexedList*> list) {
@@ -856,8 +858,10 @@ ShareBox::Inner::Inner(
 			if (const auto history = row->history()) {
 				if (!history->peer->isSelf()
 					&& (history->asForum()
-						|| JoinedCommunityChats(history->peer)
-						|| _descriptor.filterCallback(history))) {
+						? passesRestricted(history)
+						: (passesRestricted(history)
+							&& (JoinedCommunityChats(history->peer)
+								|| _descriptor.filterCallback(history))))) {
 					_defaultChatsIndexed->addToEnd(history);
 				}
 			}
@@ -913,6 +917,15 @@ bool ShareBox::Inner::showLockedError(not_null<Chat*> chat) {
 		_descriptor.moneyRestrictionError(chat->peer->asUser()).text,
 		u"require_premium"_q);
 	return true;
+}
+
+bool ShareBox::Inner::passesRestricted(
+		not_null<Data::Thread*> thread) const {
+	return _descriptor.session->isRestrictedPeerAllowed(thread->peer());
+}
+
+bool ShareBox::Inner::passesFilter(not_null<Data::Thread*> thread) const {
+	return passesRestricted(thread) && _descriptor.filterCallback(thread);
 }
 
 void ShareBox::Inner::refreshRestrictedRows() {
@@ -1432,8 +1445,8 @@ void ShareBox::Inner::chooseForumTopic(not_null<Data::Forum*> forum) {
 			box->closeBox();
 		}, box->lifetime());
 	};
-	auto filter = [=](not_null<Data::Thread*> thread) {
-		return guard && _descriptor.filterCallback(thread);
+	auto filter = [=](not_null<Data::ForumTopic*> topic) {
+		return guard && passesFilter(topic);
 	};
 	auto box = Box<PeerListBox>(
 		std::make_unique<ChooseTopicBoxController>(
@@ -1481,7 +1494,7 @@ void ShareBox::Inner::chooseMonoforumSublist(
 		}, box->lifetime());
 	};
 	auto filter = [=](not_null<Data::SavedSublist*> sublist) {
-		return guard && _descriptor.filterCallback(sublist);
+		return guard && passesFilter(sublist);
 	};
 	auto box = Box<PeerListBox>(
 		std::make_unique<ChooseSublistBoxController>(
@@ -1649,8 +1662,10 @@ void ShareBox::Inner::applyChatFilter(FilterId id) {
 			for (const auto &row : list->all()) {
 				if (const auto history = row->history()) {
 					if (history->asForum()
-							|| JoinedCommunityChats(history->peer)
-							|| _descriptor.filterCallback(history)) {
+							? passesRestricted(history)
+							: (passesRestricted(history)
+								&& (JoinedCommunityChats(history->peer)
+									|| _descriptor.filterCallback(history)))) {
 						_customChatsIndexed->addToEnd(history);
 					}
 				}
@@ -1679,9 +1694,12 @@ void ShareBox::Inner::peopleReceived(
 					peerFromMTP(data))) {
 				const auto history = _descriptor.session->data().history(
 					peer);
-				if (!history->asForum()
-					&& !JoinedCommunityChats(peer)
-					&& !_descriptor.filterCallback(history)) {
+				const auto allowed = history->asForum()
+					? passesRestricted(history)
+					: (passesRestricted(history)
+						&& (JoinedCommunityChats(peer)
+							|| _descriptor.filterCallback(history)));
+				if (!allowed) {
 					continue;
 				} else if (history && _chatsIndexed->getRow(history)) {
 					continue;

@@ -49,6 +49,12 @@ constexpr auto kPollingViewsPerPage = Story::kRecentViewersMax;
 
 using UpdateFlag = StoryUpdate::Flag;
 
+[[nodiscard]] bool IsAllowedStoriesPeer(
+		not_null<Main::Session*> session,
+		not_null<const PeerData*> peer) {
+	return peer->isSelf() || session->isRestrictedPeerAllowed(peer);
+}
+
 [[nodiscard]] std::optional<StoryMedia> ParseMedia(
 		not_null<PeerData*> peer,
 		const MTPMessageMedia &media,
@@ -790,7 +796,19 @@ void Stories::notifySourcesChanged(StorySourcesList list) {
 
 void Stories::pushHiddenCountsToFolder() {
 	const auto &list = sources(StorySourcesList::Hidden);
-	if (list.empty()) {
+	auto count = 0;
+	auto unread = 0;
+	for (const auto &info : list) {
+		const auto source = this->source(info.id);
+		if (!source || !IsAllowedStoriesPeer(&session(), source->peer)) {
+			continue;
+		}
+		++count;
+		if (info.unreadCount > 0) {
+			++unread;
+		}
+	}
+	if (!count) {
 		if (_folderForHidden) {
 			_folderForHidden->updateStoriesCount(0, 0);
 		}
@@ -799,11 +817,13 @@ void Stories::pushHiddenCountsToFolder() {
 	if (!_folderForHidden) {
 		_folderForHidden = _owner->folder(Folder::kId);
 	}
-	const auto count = int(list.size());
-	const auto unread = ranges::count_if(
-		list,
-		[](const StoriesSourceInfo &info) { return info.unreadCount > 0; });
 	_folderForHidden->updateStoriesCount(count, unread);
+}
+
+void Stories::refreshRestrictedState() {
+	pushHiddenCountsToFolder();
+	_sourcesChanged[static_cast<int>(StorySourcesList::NotHidden)].fire({});
+	_sourcesChanged[static_cast<int>(StorySourcesList::Hidden)].fire({});
 }
 
 void Stories::sendResolveRequests() {

@@ -2803,6 +2803,9 @@ rpl::producer<TopPeersList> TopPeersContent(
 		indices.reserve(top.size());
 		const auto now = base::unixtime::now();
 		for (const auto &peer : top) {
+			if (!session->isRestrictedPeerAllowed(peer)) {
+				continue;
+			}
 			const auto user = peer->asUser();
 			if (user->isInaccessible()) {
 				continue;
@@ -2926,7 +2929,13 @@ rpl::producer<TopPeersList> TopPeersContent(
 }
 
 RecentPeersList RecentPeersContent(not_null<Main::Session*> session) {
-	return RecentPeersList{ session->recentPeers().list() };
+	auto result = RecentPeersList();
+	for (const auto &peer : session->recentPeers().list()) {
+		if (session->isRestrictedPeerAllowed(peer)) {
+			result.list.push_back(peer);
+		}
+	}
+	return result;
 }
 
 object_ptr<Ui::BoxContent> StarsExamplesBox(

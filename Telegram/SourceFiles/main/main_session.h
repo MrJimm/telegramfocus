@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class ApiWrap;
+class PeerData;
+class UserData;
 
 namespace Api {
 class Updates;
@@ -89,6 +91,7 @@ namespace Main {
 class Account;
 class AppConfig;
 class Domain;
+class RestrictedAllowlist;
 class SessionSettings;
 class SendAsPeers;
 
@@ -136,6 +139,11 @@ public:
 	[[nodiscard]] uint64 uniqueId() const; // userId() with TestDC shift.
 	[[nodiscard]] UserId userId() const;
 	[[nodiscard]] PeerId userPeerId() const;
+	[[nodiscard]] bool isRestrictedPeerAllowed(PeerId peerId) const;
+	[[nodiscard]] bool isRestrictedPeerAllowed(
+		not_null<const PeerData*> peer) const;
+	[[nodiscard]] QString restrictedAllowlistPath() const;
+	[[nodiscard]] rpl::producer<> restrictedAllowlistChanges() const;
 	[[nodiscard]] not_null<UserData*> user() const {
 		return _user;
 	}
@@ -345,6 +353,7 @@ private:
 	const std::unique_ptr<Data::Passkeys> _passkeys;
 	const std::unique_ptr<Settings::FaqSuggestions> _faqSuggestions;
 	const std::unique_ptr<Settings::RecentSearches> _recentSettingsSearches;
+	const std::unique_ptr<RestrictedAllowlist> _restrictedAllowlist;
 
 	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
 	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;

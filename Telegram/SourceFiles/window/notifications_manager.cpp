@@ -117,6 +117,11 @@ base::options::toggle HideReplyButtonOption({
 	return result;
 }
 
+[[nodiscard]] bool IsAllowedNotificationThread(
+		not_null<Data::Thread*> thread) {
+	return thread->session().isRestrictedPeerAllowed(thread->peer());
+}
+
 [[nodiscard]] QString TextWithForwardedChar(
 		const QString &text,
 		bool forwarded) {
@@ -316,6 +321,7 @@ System::SkipState System::skipNotification(
 	const auto messageType = (type == Data::ItemNotificationType::Message);
 	const auto thread = item->maybeNotificationThread();
 	if (!thread
+		|| !IsAllowedNotificationThread(thread)
 		|| !thread->currentNotification()
 		|| (messageType && item->skipNotification())
 		|| (type == Data::ItemNotificationType::Reaction
@@ -1280,6 +1286,9 @@ void Manager::notificationActivated(
 	if (const auto session = system()->findSession(id.contextId.sessionId)) {
 		const auto history = session->data().history(
 			id.contextId.peerId);
+		if (!session->isRestrictedPeerAllowed(history->peer)) {
+			return;
+		}
 		const auto item = history->owner().message(
 			history->peer,
 			id.msgId);

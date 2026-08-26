@@ -35,6 +35,69 @@ namespace {
 constexpr auto kLoadedChatsMinCount = 20;
 constexpr auto kShowChatNamesCount = 8;
 
+[[nodiscard]] bool IsAllowedFolderHistory(
+		not_null<const Folder*> folder,
+		not_null<const History*> history) {
+	return folder->session().isRestrictedPeerAllowed(history->peer);
+}
+
+[[nodiscard]] bool HasAllowedFolderHistory(not_null<const Folder*> folder) {
+	const auto chatsList = const_cast<Folder*>(folder.get())->chatsList();
+	for (const auto &row : chatsList->indexed()->all()) {
+		if (const auto history = row->history()) {
+			if (IsAllowedFolderHistory(folder, history)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+[[nodiscard]] bool HasUnresolvedFolderState(not_null<const Folder*> folder) {
+	const auto chatsList = const_cast<Folder*>(folder.get())->chatsList();
+	return !chatsList->loaded()
+		&& (!chatsList->cloudUnreadKnown()
+			|| (chatsList->fullSize().current() > chatsList->indexed()->size()));
+}
+
+[[nodiscard]] bool ShouldShowFolderInChatList(not_null<const Folder*> folder) {
+	const auto chatsList = const_cast<Folder*>(folder.get())->chatsList();
+	const auto upstreamVisible = !chatsList->empty()
+		|| (folder->storiesCount() > 0);
+	return upstreamVisible
+		&& ((folder->storiesCount() > 0)
+			|| HasAllowedFolderHistory(folder)
+			|| HasUnresolvedFolderState(folder));
+}
+
+[[nodiscard]] Dialogs::UnreadState AllowedFolderUnreadState(
+		not_null<const Folder*> folder) {
+	const auto chatsList = const_cast<Folder*>(folder.get())->chatsList();
+	if (HasUnresolvedFolderState(folder)) {
+		return chatsList->unreadState();
+	}
+	auto result = Dialogs::UnreadState();
+	result.known = true;
+	for (const auto &row : chatsList->indexed()->all()) {
+		if (const auto history = row->history()) {
+			if (!IsAllowedFolderHistory(folder, history)) {
+				continue;
+			}
+			const auto unread = history->chatListUnreadState();
+			result += unread;
+			result.known = result.known && unread.known;
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] int FolderListEntryCount(not_null<const Folder*> folder) {
+	const auto chatsList = const_cast<Folder*>(folder.get())->chatsList();
+	return HasUnresolvedFolderState(folder)
+		? std::max(int(folder->lastHistories().size()), chatsList->fullSize().current())
+		: int(folder->lastHistories().size());
+}
+
 [[nodiscard]] TextWithEntities ComposeFolderListEntryText(
 		not_null<Folder*> folder) {
 	const auto &list = folder->lastHistories();
@@ -54,12 +117,10 @@ constexpr auto kShowChatNamesCount = 8;
 					storiesCount),
 			};
 		}
-		return {};
+			return {};
 	}
 
-	const auto count = std::max(
-		int(list.size()),
-		folder->chatsList()->fullSize().current());
+	const auto count = FolderListEntryCount(folder);
 
 	const auto throwAwayLastName = (list.size() > 1)
 		&& (count == list.size() + 1);
@@ -199,6 +260,8 @@ void Folder::reorderLastHistories() {
 		return row->history();
 	}) | ranges::views::filter([](History *history) {
 		return (history != nullptr);
+	}) | ranges::views::filter([=](not_null<History*> history) {
+		return IsAllowedFolderHistory(this, history);
 	});
 	auto nonPinnedChecked = 0;
 	for (const auto history : histories) {
@@ -375,11 +438,11 @@ int Folder::fixedOnTopIndex() const {
 }
 
 bool Folder::shouldBeInChatList() const {
-	return !_chatsList.empty() || (_storiesCount > 0);
+	return ShouldShowFolderInChatList(this);
 }
 
 Dialogs::UnreadState Folder::chatListUnreadState() const {
-	return _chatsList.unreadState();
+	return AllowedFolderUnreadState(this);
 }
 
 Dialogs::BadgesState Folder::chatListBadgesState() const {
