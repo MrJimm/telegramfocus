@@ -189,12 +189,12 @@ ApplicationDelegate *_sharedDelegate = nil;
 namespace Platform {
 
 void SetApplicationIcon(const QIcon &icon) {
-	NSImage *image = nil;
-	if (!icon.isNull()) {
-		auto pixmap = icon.pixmap(1024, 1024);
-		pixmap.setDevicePixelRatio(style::DevicePixelRatio());
-		image = Q2NSImage(pixmap.toImage());
-	}
+	const auto effective = icon.isNull()
+		? QIcon(QPixmap::fromImage(DefaultApplicationIcon()))
+		: icon;
+	auto pixmap = effective.pixmap(1024, 1024);
+	pixmap.setDevicePixelRatio(style::DevicePixelRatio());
+	const auto image = Q2NSImage(pixmap.toImage());
 	[[NSApplication sharedApplication] setApplicationIconImage:image];
 }
 
