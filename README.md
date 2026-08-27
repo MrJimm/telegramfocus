@@ -1,10 +1,13 @@
 # Telegram Focus - a productivity-focused modification of [Telegram Desktop][telegram_desktop]
+<img width="1880" height="837" alt="image" src="https://github.com/user-attachments/assets/f718bc28-21bf-4c81-9bde-7299efa9fe8d" />
 
 Telegram Focus is a modification of the official [Telegram Desktop][telegram_desktop] client. It shows only the chats and stories you have manually added to an allowlist.
 
 The filtering happens only inside Telegram Focus. It does not unsubscribe you from chats, change your Telegram folders, or affect how chats appear in other Telegram clients.
 
 In every other respect, it is the same fully functional Telegram Desktop client as the corresponding upstream version.
+
+You can still doomscroll on your phone, while staying clean and productive on your desktop!
 
 ## How to use it
 
@@ -41,7 +44,7 @@ Follow the official build instructions for the [Telegram Desktop][telegram_deskt
 * [macOS][mac]
 * [GNU/Linux using Docker][linux]
 
-[![Preview of Telegram Desktop][preview_image]][preview_image_url]
+
 
 The source code is published under GPLv3 with the OpenSSL exception. See the [license][license] for details.
 
