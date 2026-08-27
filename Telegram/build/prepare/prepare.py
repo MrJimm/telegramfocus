@@ -117,11 +117,31 @@ elif (winarm):
         'X8664': 'ARM64',
     })
 elif (mac):
+    import fcntl
+
+    publicBuildRoot = '/usr/src/telegram-focus'
+    prefixMapFlags = ' '.join([
+        '-ffile-prefix-map=' + rootDir + '=' + publicBuildRoot,
+        '-fmacro-prefix-map=' + rootDir + '=' + publicBuildRoot,
+        '-fdebug-prefix-map=' + rootDir + '=' + publicBuildRoot,
+    ])
+    prefixMapResponsePath = '/private/tmp/telegram-focus-prefix-map.flags'
+    prefixMapLock = open(prefixMapResponsePath + '.lock', 'w')
+    fcntl.flock(prefixMapLock, fcntl.LOCK_EX)
+    with open(prefixMapResponsePath, 'w') as file:
+        file.write(prefixMapFlags.replace(' ', '\n') + '\n')
     environment.update({
         'SPECIAL_TARGET': 'mac',
         'MAKE_THREADS_CNT': '-j' + str(os.cpu_count()),
         'MACOSX_DEPLOYMENT_TARGET': '10.13',
-        'UNGUARDED': '-Werror=unguarded-availability-new',
+        'PUBLIC_BUILD_PREFIX': publicBuildRoot + '/Libraries/local',
+        'PREFIX_MAP_FLAGS': prefixMapFlags,
+        'PREFIX_MAP_RESPONSE': '@' + prefixMapResponsePath,
+        'CFLAGS': prefixMapFlags,
+        'CXXFLAGS': prefixMapFlags,
+        'OBJCFLAGS': prefixMapFlags,
+        'OBJCXXFLAGS': prefixMapFlags,
+        'UNGUARDED': '-Werror=unguarded-availability-new ' + prefixMapFlags,
         'MIN_VER': '-mmacosx-version-min=10.13',
         'CMAKE_GENERATOR': 'Ninja',
     })
@@ -595,7 +615,7 @@ win:
 release:
     cmake --build . --config Release
 mac:
-    CFLAGS="-arch arm64" cmake -B build.arm64 . \\
+    CFLAGS="-arch arm64 $PREFIX_MAP_FLAGS" cmake -B build.arm64 . \\
         -D CMAKE_POLICY_VERSION_MINIMUM=3.5 \\
         -D CMAKE_SYSTEM_NAME=Darwin \\
         -D CMAKE_SYSTEM_PROCESSOR=arm64 \\
@@ -605,7 +625,7 @@ mac:
         -D ENABLE_SHARED=OFF \\
         -D PNG_SUPPORTED=OFF
     cmake --build build.arm64
-    CFLAGS="-arch x86_64" cmake -B build . \\
+    CFLAGS="-arch x86_64 $PREFIX_MAP_FLAGS" cmake -B build . \\
         -D CMAKE_POLICY_VERSION_MINIMUM=3.5 \\
         -D CMAKE_SYSTEM_NAME=Darwin \\
         -D CMAKE_SYSTEM_PROCESSOR=x86_64 \\
@@ -652,13 +672,15 @@ win_release:
     move libssl.lib out
     move ossl_static.pdb out
 mac:
-    ./Configure --prefix=$USED_PREFIX no-shared no-tests darwin64-arm64-cc $MIN_VER
+    CFLAGS="$PREFIX_MAP_RESPONSE" CXXFLAGS="$PREFIX_MAP_RESPONSE" \
+        ./Configure --prefix=$PUBLIC_BUILD_PREFIX no-shared no-tests darwin64-arm64-cc $MIN_VER
     make build_libs $MAKE_THREADS_CNT
     mkdir out.arm64
     mv libssl.a out.arm64
     mv libcrypto.a out.arm64
     make clean
-    ./Configure --prefix=$USED_PREFIX no-shared no-tests darwin64-x86_64-cc $MIN_VER
+    CFLAGS="$PREFIX_MAP_RESPONSE" CXXFLAGS="$PREFIX_MAP_RESPONSE" \
+        ./Configure --prefix=$PUBLIC_BUILD_PREFIX no-shared no-tests darwin64-x86_64-cc $MIN_VER
     make build_libs $MAKE_THREADS_CNT
     mkdir out.x86_64
     mv libssl.a out.x86_64
@@ -1095,7 +1117,7 @@ depends:patches/build_libvpx_win.sh
 mac:
     find ../patches/libvpx -type f -print0 | sort -z | xargs -0 git apply
 
-    ./configure --prefix=$USED_PREFIX \
+    ./configure --prefix=$PUBLIC_BUILD_PREFIX \
     --target=arm64-darwin20-gcc \
     --disable-examples \
     --disable-unit-tests \
@@ -1113,7 +1135,7 @@ mac:
 
     make clean
 
-    ./configure --prefix=$USED_PREFIX \
+    ./configure --prefix=$PUBLIC_BUILD_PREFIX \
     --target=x86_64-darwin20-gcc \
     --disable-examples \
     --disable-unit-tests \
@@ -1130,7 +1152,7 @@ mac:
 
     lipo -create out.arm64/libvpx.a out.x86_64/libvpx.a -output libvpx.a
 
-    make install
+    make install DIST_DIR=$USED_PREFIX
 """)
 
 stage('liblcms2', """
@@ -1608,7 +1630,7 @@ release:
 mac_asserts:
     ASSERTS=-force-asserts
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-$QT" \
+    ./configure -prefix "$PUBLIC_BUILD_PREFIX/Qt-$QT" \
         $CONFIGURATIONS \
         $ASSERTS \
         -force-debug-info \
@@ -1631,7 +1653,7 @@ mac:
         -DQT_SYNC_HEADERS_AT_CONFIGURE_TIME=ON
 
     cmake --build .
-    cmake --install .
+    cmake --install . --prefix "$USED_PREFIX/Qt-$QT"
 win:
     cd qtbase
     setlocal enabledelayedexpansion

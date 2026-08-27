@@ -57,6 +57,20 @@ include(cmake/target_prepare_qrc.cmake)
 include(cmake/options.cmake)
 include(cmake/external/qt/package.cmake)
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$"
+    AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    get_filename_component(
+        desktop_app_local_build_root
+        "${CMAKE_SOURCE_DIR}/.."
+        REALPATH)
+    set(desktop_app_public_build_root "/usr/src/telegram-focus")
+    add_compile_options(
+        "$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-ffile-prefix-map=${desktop_app_local_build_root}=${desktop_app_public_build_root}>"
+        "$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fmacro-prefix-map=${desktop_app_local_build_root}=${desktop_app_public_build_root}>"
+        "$<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fdebug-prefix-map=${desktop_app_local_build_root}=${desktop_app_public_build_root}>"
+    )
+endif()
+
 set(desktop_app_skip_libs
     glibmm
     variant
