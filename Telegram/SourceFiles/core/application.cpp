@@ -318,9 +318,16 @@ void Application::run() {
 
 	refreshGlobalProxy(); // Depends on app settings being read.
 
-	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
+	const auto oldSettingsVersion = Local::oldSettingsVersion();
+#if defined Q_OS_MAC && defined TDESKTOP_FOCUS_BUILD
+	autoRegisterUrlScheme();
+#else // defined Q_OS_MAC && defined TDESKTOP_FOCUS_BUILD
+	if (oldSettingsVersion < AppVersion) {
 		autoRegisterUrlScheme();
-		Platform::NewVersionLaunched(old);
+	}
+#endif // defined Q_OS_MAC && defined TDESKTOP_FOCUS_BUILD
+	if (oldSettingsVersion < AppVersion) {
+		Platform::NewVersionLaunched(oldSettingsVersion);
 	}
 
 	if (cAutoStart() && !Platform::AutostartSupported()) {
