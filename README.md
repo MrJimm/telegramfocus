@@ -1,45 +1,49 @@
-# [Telegram Desktop][telegram_desktop] – Official Messenger
+# Telegram Focus - a productivity-focused modification of [Telegram Desktop][telegram_desktop]
 
-This is the complete source code and the build instructions for the official [Telegram][telegram] messenger desktop client, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
+Telegram Focus is a modification of the official [Telegram Desktop][telegram_desktop] client. It shows only the chats and stories you have manually added to an allowlist.
 
-[![Version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://github.com/telegramdesktop/tdesktop/releases)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/Windows./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/MacOS./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/Linux./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-[![Built with Depot](https://img.shields.io/badge/Built%20with-Depot.dev-46A75A)](https://depot.dev)
+The filtering happens only inside Telegram Focus. It does not unsubscribe you from chats, change your Telegram folders, or affect how chats appear in other Telegram clients.
+
+In every other respect, it is the same fully functional Telegram Desktop client as the corresponding upstream version.
+
+## How to use it
+
+1. Install Telegram Focus.
+2. Create a chat folder named **Allowlist** in your Telegram account. Use your phone or another regular Telegram client to create and manage it.
+3. Add the chats you want to see on desktop to that folder.
+4. Open Telegram Focus. Only chats and stories from your allowlist will be shown.
+
+## Installation
+
+### macOS
+
+I mainly develop for Linux and Windows, so I do not have an Apple Developer account or the tools needed to notarize the app yet. The DMG still installs normally, but macOS may ask for one extra confirmation before the first launch.
+
+1. Download the latest DMG from the [Releases][releases] page.
+2. Open the DMG in Finder.
+3. Drag **Telegram Focus.app** into the **Applications** folder.
+4. Open **Telegram Focus** from **Applications**.
+5. If macOS blocks the first launch, Control-click the app, choose **Open**, and confirm the action.
+
+### Linux
+
+Package coming soon.
+
+### Windows
+
+Package coming soon.
+
+## Building from source
+
+Follow the official build instructions for the [Telegram Desktop][telegram_desktop] client. Telegram Desktop is based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
+
+* [Windows (32-bit and 64-bit)][win]
+* [macOS][mac]
+* [GNU/Linux using Docker][linux]
 
 [![Preview of Telegram Desktop][preview_image]][preview_image_url]
 
-The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
-
-## Supported systems
-
-The latest version is available for
-
-* [Windows 7 and above (64 bit)](https://telegram.org/dl/desktop/win64) ([portable](https://telegram.org/dl/desktop/win64_portable))
-* [Windows 7 and above (32 bit)](https://telegram.org/dl/desktop/win) ([portable](https://telegram.org/dl/desktop/win_portable))
-* [macOS 10.13 and above](https://telegram.org/dl/desktop/mac)
-* [Linux static build for 64 bit](https://telegram.org/dl/desktop/linux)
-* [Snap](https://snapcraft.io/telegram-desktop)
-* [Flatpak](https://flathub.org/apps/details/org.telegram.desktop)
-
-## Old system versions
-
-Version **4.9.9** was the last that supports older systems
-
-* [macOS 10.12](https://updates.tdesktop.com/tmac/tsetup.4.9.9.dmg)
-* [Linux with glibc < 2.28 static build](https://updates.tdesktop.com/tlinux/tsetup.4.9.9.tar.xz)
-
-Version **2.4.4** was the last that supports older systems
-
-* [OS X 10.10 and 10.11](https://updates.tdesktop.com/tosx/tsetup-osx.2.4.4.dmg)
-* [Linux static build for 32 bit](https://updates.tdesktop.com/tlinux32/tsetup32.2.4.4.tar.xz)
-
-Version **1.8.15** was the last that supports older systems
-
-* [Windows XP and Vista](https://updates.tdesktop.com/tsetup/tsetup.1.8.15.exe) ([portable](https://updates.tdesktop.com/tsetup/tportable.1.8.15.zip))
-* [OS X 10.8 and 10.9](https://updates.tdesktop.com/tmac/tsetup.1.8.15.dmg)
-* [OS X 10.6 and 10.7](https://updates.tdesktop.com/tmac32/tsetup32.1.8.15.dmg)
+The source code is published under GPLv3 with the OpenSSL exception. See the [license][license] for details.
 
 ## Third-party
 
@@ -67,33 +71,15 @@ Version **1.8.15** was the last that supports older systems
 * Hunspell ([LGPL](https://github.com/hunspell/hunspell/blob/master/COPYING.LESSER))
 * Ada ([Apache License 2.0](https://github.com/ada-url/ada/blob/main/LICENSE-APACHE))
 
-## Build instructions
-
-* [Windows (32-bit and 64-bit)][win]
-* [macOS][mac]
-* [GNU/Linux using Docker][linux]
 
 [//]: # (LINKS)
-[telegram]: https://telegram.org
-[telegram_desktop]: https://desktop.telegram.org
+[telegram_desktop]: https://github.com/telegramdesktop/tdesktop
 [telegram_api]: https://core.telegram.org
 [telegram_proto]: https://core.telegram.org/mtproto
 [license]: LICENSE
+[releases]: https://github.com/MrJimm/telegramfocus/releases
 [win]: docs/building-win.md
 [mac]: docs/building-mac.md
 [linux]: docs/building-linux.md
 [preview_image]: https://github.com/telegramdesktop/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop"
 [preview_image_url]: https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png
-
-## Thanks to
-
-<a href="https://depot.dev">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://depot.dev/assets/brand/1693758816/depot-logo-horizontal-on-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://depot.dev/assets/brand/1693758816/depot-logo-horizontal-on-light.svg">
-    <img alt="Depot" src="https://depot.dev/assets/brand/1693758816/depot-logo-horizontal-on-light.svg" width="150">
-  </picture>
-</a>
-
-CI infrastructure sponsored by [Depot](https://depot.dev) — fast GitHub Actions runners.
-
