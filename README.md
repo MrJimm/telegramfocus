@@ -16,6 +16,9 @@ You can still doomscroll on your phone, while staying clean and productive on yo
 3. Add the chats you want to see on desktop to that folder.
 4. Open Telegram Focus. Only chats and stories from your allowlist will be shown.
 
+### FRIENDLY WARNING: Use only one Telegram desktop client at a time — either Telegram Focus or the regular Telegram Desktop client.
+Telegram Focus uses the same tdata folder as the regular client, so running both at the same time may cause conflicts with your Telegram sessions.
+
 ## Installation
 
 ### macOS
