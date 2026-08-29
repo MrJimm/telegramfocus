@@ -7,7 +7,7 @@ The filtering happens only inside Telegram Focus. It does not unsubscribe you fr
 
 In every other respect, it is the same fully functional Telegram Desktop client as the corresponding upstream version.
 
-You can still doomscroll on your phone, while staying clean and productive on your desktop!
+You can still doomscroll on your phone, while staying clean on your desktop!
 
 ## How to use it
 
@@ -30,6 +30,9 @@ I mainly develop for Linux and Windows, so I do not have an Apple Developer acco
 3. Drag **Telegram Focus.app** into the **Applications** folder.
 4. Open **Telegram Focus** from **Applications**.
 5. If macOS blocks the first launch, Control-click the app, choose **Open**, and confirm the action.
+
+### FRIENDLY WARNING: Use only one Telegram desktop client at a time — either Telegram Focus or the regular Telegram Desktop client.
+Telegram Focus uses the same tdata folder as the regular client, so running both at the same time may cause conflicts with your Telegram sessions.
 
 ### Linux
 
