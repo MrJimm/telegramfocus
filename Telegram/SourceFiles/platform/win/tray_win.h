@@ -23,6 +23,8 @@ class QPlatformSystemTrayIcon;
 
 namespace Platform {
 
+[[nodiscard]] const QImage &WindowsApplicationLogo();
+
 class Tray final {
 public:
 	Tray();

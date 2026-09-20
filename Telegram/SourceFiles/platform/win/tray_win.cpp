@@ -31,6 +31,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 
+const QImage &WindowsApplicationLogo() {
+	static const auto Result = [] {
+		constexpr auto kResourceId = 201;
+		const auto module = GetModuleHandle(nullptr);
+		const auto resource = FindResource(
+			module,
+			MAKEINTRESOURCE(kResourceId),
+			RT_RCDATA);
+		if (!resource) {
+			return QImage(Window::Logo());
+		}
+		const auto loaded = LoadResource(module, resource);
+		const auto data = loaded ? LockResource(loaded) : nullptr;
+		const auto size = SizeofResource(module, resource);
+		if (!data || !size) {
+			return QImage(Window::Logo());
+		}
+		auto result = QImage();
+		result.loadFromData(QByteArray::fromRawData(
+			static_cast<const char*>(data),
+			int(size)), "PNG");
+		return result.isNull() ? QImage(Window::Logo()) : result;
+	}();
+	return Result;
+}
+
 namespace {
 
 constexpr auto kTooltipDelay = crl::time(10000);
@@ -127,10 +153,9 @@ bool DarkTasbarValueValid/* = false*/;
 		}
 		return scaled.emplace(
 			args.size,
-			(smallIcon
-				? Window::LogoNoMargin()
-				: Window::Logo()
-			).scaledToWidth(args.size, Qt::SmoothTransformation)
+			WindowsApplicationLogo().scaledToWidth(
+				args.size,
+				Qt::SmoothTransformation)
 		).first->second;
 	}();
 	if ((!monochrome || !darkMode) && supportMode) {
@@ -169,7 +194,7 @@ void Tray::createIcon() {
 		}
 		_icon->init();
 		updateIcon();
-		_icon->updateToolTip(AppName.utf16());
+		_icon->updateToolTip(u"Telegram Focus Desktop"_q);
 
 		using Reason = QPlatformSystemTrayIcon::ActivationReason;
 		base::qt_signal_producer(
@@ -270,7 +295,7 @@ void Tray::addAction(rpl::producer<QString> text, Fn<void()> &&callback) {
 void Tray::showTrayMessage() const {
 	if (!cSeenTrayTooltip() && _icon) {
 		_icon->showMessage(
-			AppName.utf16(),
+			u"Telegram Focus Desktop"_q,
 			tr::lng_tray_icon_text(tr::now),
 			QIcon(),
 			QPlatformSystemTrayIcon::Information,

@@ -140,7 +140,7 @@ struct RealSize {
 	auto result = QImage(size, QImage::Format_RGB32);
 	result.fill(st::windowBg->c);
 
-	const auto logo = Window::Logo();
+	const auto logo = WindowsApplicationLogo();
 	const auto width = size.width();
 	const auto height = size.height();
 	const auto side = logo.width();
