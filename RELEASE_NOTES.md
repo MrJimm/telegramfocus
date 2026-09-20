@@ -34,5 +34,6 @@ Based on Telegram Desktop 7.1.2.
 
 - The Windows binaries are unsigned. Windows SmartScreen may display an "Unknown publisher" warning.
 - The macOS application is ad hoc signed and is not notarized by Apple. Gatekeeper may require opening it through Finder with Control-click, then **Open**.
+- The macOS build requires macOS 12 or later.
 - Automatic updates and crash reporting are disabled in this build.
 - Telegram Focus behavior on macOS is unchanged in this release; the macOS package is rebuilt so every published artifact corresponds to the same release source.
