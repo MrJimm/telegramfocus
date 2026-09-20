@@ -16,15 +16,9 @@ Based on Telegram Desktop 7.1.2.
 
 - `TelegramFocus-7.1.2-x64-setup.exe` - regular Windows x64 installer.
 - `TelegramFocus-7.1.2-x64-portable.zip` - portable Windows x64 version.
-- `SHA256SUMS.txt` - SHA-256 checksums for both Windows packages.
-- `build-info.txt` - build configuration and verification details.
-
-## SHA-256
-
-```text
-FD023AA302A1F26850EC529EE04C63515D73A3EEAD36DF3E181247B93732502C  TelegramFocus-7.1.2-x64-portable.zip
-4DB86668A3FF4F31E5AC47F022C76C7F1F76BD1F22C6CE4E82201A6653A52763  TelegramFocus-7.1.2-x64-setup.exe
-```
+- `Telegram-Focus-v7.1.2_focus1.2.0-macOS-universal.dmg` - universal macOS build for Apple Silicon and Intel.
+- `SHA256SUMS.txt` - SHA-256 checksums for all release packages.
+- `build-info.txt` - Windows build configuration and verification details.
 
 ## Verification
 
@@ -33,9 +27,12 @@ FD023AA302A1F26850EC529EE04C63515D73A3EEAD36DF3E181247B93732502C  TelegramFocus-
 - The runtime taskbar icon was checked from both installed and portable processes.
 - Portable data was created only under `TelegramForcePortable\tdata`.
 - Silent installer installation and complete uninstallation were verified.
+- The macOS application is rebuilt from the release commit as a universal `arm64` and `x86_64` bundle.
+- The macOS application bundle and DMG pass structural, signature, and checksum verification.
 
 ## Important notes
 
 - The Windows binaries are unsigned. Windows SmartScreen may display an "Unknown publisher" warning.
+- The macOS application is ad hoc signed and is not notarized by Apple. Gatekeeper may require opening it through Finder with Control-click, then **Open**.
 - Automatic updates and crash reporting are disabled in this build.
-- Existing Telegram Focus macOS builds do not need to be rebuilt for these Windows-only identity and packaging changes.
+- Telegram Focus behavior on macOS is unchanged in this release; the macOS package is rebuilt so every published artifact corresponds to the same release source.
