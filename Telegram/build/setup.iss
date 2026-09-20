@@ -1,9 +1,11 @@
-#define MyAppShortName "Telegram"
-#define MyAppName "Telegram Desktop"
-#define MyAppPublisher "Telegram FZ-LLC"
-#define MyAppURL "https://desktop.telegram.org"
-#define MyAppExeName "Telegram.exe"
-#define MyAppId "53F49750-6209-4FBF-9CA8-7A333C87D1ED"
+#define MyAppShortName "Telegram Focus"
+#define MyAppName "Telegram Focus"
+#define MyAppPublisher "MrJimmsky"
+#define MyAppURL "https://github.com/MrJimm/telegramfocus"
+#define MyAppSupportURL "https://github.com/MrJimm/telegramfocus/issues"
+#define MyAppUpdatesURL "https://github.com/MrJimm/telegramfocus/releases"
+#define MyAppExeName "TelegramFocus.exe"
+#define MyAppId "5AF40AB4-E710-4527-BDD0-5554817EACA6"
 #define CurrentYear GetDateTimeString('yyyy','','')
 
 [Setup]
@@ -16,15 +18,15 @@ AppVersion={#MyAppVersion}
 AppCopyright={#MyAppPublisher} 2014-{#CurrentYear}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}
-AppUpdatesURL={#MyAppURL}
+AppSupportURL={#MyAppSupportURL}
+AppUpdatesURL={#MyAppUpdatesURL}
 DefaultDirName={userappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir={#ReleasePath}
 SetupIconFile={#SourcePath}..\Resources\art\icon256.ico
 UninstallDisplayName={#MyAppName}
-UninstallDisplayIcon={app}\Telegram.exe
+UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma
 SolidCompression=yes
 DisableStartupPrompt=yes
@@ -34,7 +36,7 @@ CloseApplications=force
 DisableDirPage=no
 DisableProgramGroupPage=no
 WizardStyle=modern
-SignTool=sha256
+; This community build is intentionally unsigned. The upstream signing key is private.
 
 #if MyBuildTarget == "winarm"
   ArchitecturesAllowed="arm64"
@@ -44,7 +46,7 @@ SignTool=sha256
 #elif MyBuildTarget == "win64"
   ArchitecturesAllowed="x64compatible"
   ArchitecturesInstallIn64BitMode="x64compatible"
-  OutputBaseFilename=tsetup-x64.{#MyAppVersionFull}
+  OutputBaseFilename=TelegramFocus-{#MyAppVersionFull}-x64-setup
   #define ArchModulesFolder "x64"
   AppVerName={#MyAppName} {#MyAppVersion} 64bit
 #else
@@ -70,8 +72,7 @@ Name: "ua";      MessagesFile: "compiler:Languages\Ukrainian.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "{#ReleasePath}\Telegram.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#ReleasePath}\Updater.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#ReleasePath}\Telegram.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
 #if MyBuildTarget != "winarm"
 Source: "{#ReleasePath}\{#ModulesFolder}\d3d\d3dcompiler_47.dll"; DestDir: "{app}\{#ModulesFolder}\d3d"; Flags: ignoreversion
 #endif
@@ -89,6 +90,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 Type: files; Name: "{app}\data"
 Type: files; Name: "{app}\data_config"
 Type: files; Name: "{app}\log.txt"
+Type: files; Name: "{app}\log_start*.txt"
 Type: filesandordirs; Name: "{app}\DebugLogs"
 Type: filesandordirs; Name: "{app}\tupdates"
 Type: filesandordirs; Name: "{app}\tdata"

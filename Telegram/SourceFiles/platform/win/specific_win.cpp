@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/win/main_window_win.h"
 #include "platform/win/notifications_manager_win.h"
+#include "platform/win/tray_win.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_dlls.h"
 #include "platform/win/windows_autostart_task.h"
@@ -390,7 +391,8 @@ void finish() {
 }
 
 void SetApplicationIcon(const QIcon &icon) {
-	QApplication::setWindowIcon(icon);
+	const auto focus = QIcon(QPixmap::fromImage(WindowsApplicationLogo()));
+	QApplication::setWindowIcon(focus.isNull() ? icon : focus);
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
@@ -709,7 +711,7 @@ void NewVersionLaunched(int oldVersion) {
 }
 
 QImage DefaultApplicationIcon() {
-	return Window::Logo();
+	return WindowsApplicationLogo();
 }
 
 void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {

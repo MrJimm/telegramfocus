@@ -36,7 +36,16 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
+// Telegram Focus application icon.
 IDI_ICON1               ICON                    "..\\art\\icon256.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Telegram Focus runtime logo
+//
+
+// Used by the Windows taskbar and tray icon renderer.
+201                     RCDATA                  "..\\art\\icon_round512@2x.png"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -60,11 +69,11 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "Telegram FZ-LLC"
-            VALUE "FileDescription", "Telegram Desktop"
+            VALUE "CompanyName", "MrJimmsky"
+            VALUE "FileDescription", "Telegram Focus Desktop"
             VALUE "FileVersion", "7.1.2.0"
             VALUE "LegalCopyright", "Copyright (C) 2014-2026"
-            VALUE "ProductName", "Telegram Desktop"
+            VALUE "ProductName", "Telegram Focus Desktop"
             VALUE "ProductVersion", "7.1.2.0"
         END
     END
