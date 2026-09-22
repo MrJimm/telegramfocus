@@ -16,29 +16,55 @@ You can still doomscroll on your phone, while staying clean on your desktop!
 3. Add the chats you want to see on desktop to that folder.
 4. Open Telegram Focus. Only chats and stories from your allowlist will be shown.
 
-### FRIENDLY WARNING: Use only one Telegram desktop client at a time — either Telegram Focus or the regular Telegram Desktop client.
-Telegram Focus uses the same tdata folder as the regular client, so running both at the same time may cause conflicts with your Telegram sessions.
+#### FRIENDLY REMINDER: On macOS use only one Telegram desktop client at a time - either Telegram Focus or the regular Telegram Desktop client, since...
+...the macOS build of Telegram Focus uses the same local tdata folder as the regular Telegram Desktop client. Running both applications at the same time may cause conflicts with your local Telegram session.
 
 ## Installation
 
+- [macOS](#macos)
+- [Windows](#windows)
+- [Linux](#linux)
+
 ### macOS
+
+Download the [universal macOS DMG][macos_download] for Apple Silicon and Intel, or visit the [Releases][releases] page.
+
+1. Open the downloaded DMG in Finder.
+2. Drag **Telegram Focus.app** into the **Applications** folder.
+3. Open **Telegram Focus** from **Applications**.
+4. If macOS blocks the first launch, Control-click the app, choose **Open**, and confirm the action.
 
 I mainly develop for Linux and Windows, so I do not have an Apple Developer account or the tools needed to notarize the app yet. The DMG still installs normally, but macOS may ask for one extra confirmation before the first launch.
 
-1. Download the latest DMG from the [Releases][releases] page.
-2. Open the DMG in Finder.
-3. Drag **Telegram Focus.app** into the **Applications** folder.
-4. Open **Telegram Focus** from **Applications**.
-5. If macOS blocks the first launch, Control-click the app, choose **Open**, and confirm the action.
+#### FRIENDLY REMINDER: On macOS use only one Telegram desktop client at a time, since...
 
-### FRIENDLY WARNING: Use only one Telegram desktop client at a time — either Telegram Focus or the regular Telegram Desktop client.
-Telegram Focus uses the same tdata folder as the regular client, so running both at the same time may cause conflicts with your Telegram sessions.
-
-### Linux
-
-Package coming soon.
+...the macOS build of Telegram Focus uses the same local `tdata` folder as the regular Telegram Desktop client. Running both applications at the same time may cause conflicts with your local Telegram session.
 
 ### Windows
+
+Telegram Focus is available for Windows x64 as both a regular installer and a portable package:
+
+- [Download the Windows installer][windows_installer]
+- [Download the portable Windows version][windows_portable]
+- [View all releases][releases]
+
+#### Installer
+
+1. Download and run [TelegramFocus-7.1.2-x64-setup.exe][windows_installer] (or download it from [releases][releases]).
+2. Follow the installation steps.
+3. Launch **Telegram Focus** from the Start menu or desktop shortcut.
+
+The Windows binaries are currently unsigned. If Windows SmartScreen displays an **Unknown publisher** warning, click **More info**, then **Run anyway**.
+
+#### Portable version
+
+1. Download [TelegramFocus-7.1.2-x64-portable.zip][windows_portable] (or download it from [releases][releases]).
+2. Extract the entire archive into a folder. Do not run the application directly from the ZIP file.
+3. Run `TelegramFocus.exe` from the extracted folder.
+
+The Windows installer stores its local data under `%APPDATA%\Telegram Focus`. The portable version stores it inside `TelegramForcePortable\tdata`. Both locations are separate from the official Telegram Desktop installation.
+
+### Linux
 
 Package coming soon.
 
@@ -87,6 +113,9 @@ The source code is published under GPLv3 with the OpenSSL exception. See the [li
 [telegram_proto]: https://core.telegram.org/mtproto
 [license]: LICENSE
 [releases]: https://github.com/MrJimm/telegramfocus/releases
+[macos_download]: https://github.com/MrJimm/telegramfocus/releases/download/v7.1.2_focus1.2.0/Telegram-Focus-v7.1.2_focus1.2.0-macOS-universal.dmg
+[windows_installer]: https://github.com/MrJimm/telegramfocus/releases/download/v7.1.2_focus1.2.0/TelegramFocus-7.1.2-x64-setup.exe
+[windows_portable]: https://github.com/MrJimm/telegramfocus/releases/download/v7.1.2_focus1.2.0/TelegramFocus-7.1.2-x64-portable.zip
 [win]: docs/building-win.md
 [mac]: docs/building-mac.md
 [linux]: docs/building-linux.md
