@@ -2836,6 +2836,10 @@ int LayoutBlocks(
 		auto blockContext = context;
 		blockContext.preparedPath.push_back(i);
 		blockContext.inlineButtonWidthCap = analysis[i].inlineButtonWidthCap;
+		const auto takesSkipBlock = !anchorOnly
+			&& !next
+			&& TakesMessageSkipBlock(block);
+		blockContext.skipBlock = takesSkipBlock ? context.skipBlock : QSize();
 		if (HideEmptyQuoteAuthorBlock(block, blockContext)) {
 			blocks->push_back(HiddenQuoteAuthorBlock(block));
 			continue;
@@ -3393,6 +3397,7 @@ int LayoutBlocks(
 			outerLeft = quoteLeft + ((quoteWidth - outerWidth) / 2);
 		}
 	}
+	block->centeredShift = std::max(outerLeft - quoteLeft, 0);
 	block->outer = QRect(outerLeft, top, outerWidth, quoteHeight);
 	block->collapseControlRect = QuoteHasCollapseControl(*block)
 		? QuoteCollapseControlRect(block->outer, st.body.blockquote)
@@ -3955,7 +3960,9 @@ int LayoutBlocks(
 [[nodiscard]] const style::TextStyle &LaidOutFlowTextStyle(
 		const LaidOutBlock &block,
 		const style::Markdown &st) {
-	if (block.footer) {
+	if (block.quoteAuthor) {
+		return st.quoteAuthorStyle;
+	} else if (block.footer) {
 		return st.footer;
 	} else if (block.kind != PreparedBlockKind::Heading) {
 		return st.body;
@@ -4003,6 +4010,10 @@ int LayoutBlocks(
 	case PreparedBlockKind::Heading: {
 		if (block.flowTextAlign != style::al_left) {
 			return outerRight;
+		} else if (block.skipBlockLength > 0) {
+			const auto band = block.textRect.width();
+			const auto width = std::min(block.leaf.countWidth(band), band);
+			return std::min(block.textRect.x() + width, outerRight);
 		}
 		const auto &leaf = block.placeholderLeaf.isEmpty()
 			? block.leaf
@@ -4059,8 +4070,11 @@ int LayoutBlocks(
 					childrenRight()),
 				outerRight);
 	case PreparedBlockKind::Quote:
+		// WHY: a pullquote is centred in its band, so its right edge moves
+		// with the layout width and would shrink the bubble on every pass;
+		// its frame width measured from the band's left does not move.
 		return block.pullquote
-			? outerRight
+			? (outerRight - block.centeredShift)
 			: std::min(
 				childrenRight()
 					+ BlockquotePadding(st.body.blockquote).right(),
@@ -4106,6 +4120,10 @@ int LayoutBlocks(
 		const auto next = NextVisibleBlock(prepared, i);
 		auto blockContext = context;
 		blockContext.preparedPath.push_back(i);
+		const auto takesSkipBlock = !anchorOnly
+			&& !next
+			&& TakesMessageSkipBlock(preparedBlock);
+		blockContext.skipBlock = takesSkipBlock ? context.skipBlock : QSize();
 		if (HideEmptyQuoteAuthorBlock(preparedBlock, blockContext)) {
 			live = HiddenQuoteAuthorBlock(preparedBlock);
 			continue;
@@ -4268,6 +4286,18 @@ int ArticleContentMaxRight(
 		result = std::max(
 			result,
 			BlockContentMaxRight(block, st, rtl) - bandPadding.left());
+	}
+	return result;
+}
+
+int ArticleHorizontalOverflow(const std::vector<LaidOutBlock> &blocks) {
+	auto result = 0;
+	for (const auto &block : blocks) {
+		result = std::max({
+			result,
+			block.horizontalScrollMax,
+			ArticleHorizontalOverflow(block.children),
+		});
 	}
 	return result;
 }

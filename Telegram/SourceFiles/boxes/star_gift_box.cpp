@@ -143,6 +143,7 @@ constexpr auto kPriceTabCollectibles = -2;
 constexpr auto kSentToastDuration = 3 * crl::time(1000);
 constexpr auto kSwitchUpgradeCoverInterval = 3 * crl::time(1000);
 constexpr auto kUpgradeDoneToastDuration = 4 * crl::time(1000);
+constexpr auto kMessageRestrictedToastDuration = 4 * crl::time(1000);
 constexpr auto kResellPriceCacheLifetime = 60 * crl::time(1000);
 
 using namespace HistoryView;
@@ -2274,6 +2275,16 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 
 } // namespace
 
+rpl::producer<bool> StarGiftMessageAllowedValue(not_null<PeerData*> peer) {
+	peer->updateFull();
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::StarsPerMessage
+	) | rpl::map([=] {
+		return peer->starsPerMessageChecked() == 0;
+	});
+}
+
 not_null<InputField*> AddStarGiftMessageField(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<VerticalLayout*> container,
@@ -2485,6 +2496,24 @@ void ChooseStarGiftRecipient(
 			Box<PeerListBox>(std::move(controller), std::move(initBox)),
 			LayerOption::KeepOther);
 	});
+}
+
+bool CanSendStarGiftTo(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return !user->isInaccessible()
+			&& !user->isSelf()
+			&& !user->isBot()
+			&& !user->isServiceUser()
+			&& !user->isNotificationsUser()
+			&& !user->isRepliesChat()
+			&& !user->isVerifyCodes()
+			&& user->session().premiumCanBuy();
+	} else if (const auto channel = peer->asBroadcast()) {
+		return !channel->isForbidden()
+			&& channel->stargiftsAvailable()
+			&& !channel->amCreator();
+	}
+	return false;
 }
 
 void ShowStarGiftBox(
@@ -2750,13 +2779,15 @@ void AttachGiftSenderBadge(
 		const auto margin = st::msgServiceMargin;
 		const auto padding = st::msgServicePadding;
 		const auto available = outer.marginsRemoved(margin).width();
+		const auto minTop = margin.top() * 2;
 		badge->resizeToWidth(std::min(
 			available - padding.left() - padding.right(),
 			badge->textMaxWidth()));
+		box->setMinimalTopSkip(minTop + badge->height() + margin.top());
 		const auto inner = Ui::MapFrom(parent, box, box->rect());
 		const auto top = std::max(
 			inner.y() - badge->height() - margin.top(),
-			outer.y() + (margin.top() * 2));
+			outer.y() + minTop);
 		const auto left = margin.left() + (available - badge->width()) / 2;
 		badge->move(left, top);
 	};
@@ -4560,12 +4591,23 @@ void ShowGiftTransferredToast(
 
 bool ShowGiftErrorToast(
 		std::shared_ptr<Ui::Show> show,
-		const MTP::Error &error) {
-	if (error.type() == u"STARGIFT_ALREADY_BURNED"_q) {
+		const QString &type) {
+	if (type == u"STARGIFT_ALREADY_BURNED"_q) {
 		show->showToast(tr::lng_gift_burned_message(tr::now));
+		return true;
+	} else if (type == u"STARGIFT_MESSAGE_INVALID"_q) {
+		show->showToast(
+			tr::lng_gift_send_message_restricted(tr::now),
+			kMessageRestrictedToastDuration);
 		return true;
 	}
 	return false;
+}
+
+bool ShowGiftErrorToast(
+		std::shared_ptr<Ui::Show> show,
+		const MTP::Error &error) {
+	return ShowGiftErrorToast(show, error.type());
 }
 
 CreditsAmount StarsFromTon(
@@ -4636,7 +4678,8 @@ void DefaultGiftHandler(
 				.recipientId = peer->id,
 				.forceTon = star->forceTon,
 			},
-			Settings::CreditsEntryBoxStyleOverrides()));
+			Settings::CreditsEntryBoxStyleOverrides(),
+			nullptr));
 	} else if (unique && star->mine && !peer->isSelf()) {
 		if (ShowTransferGiftLater(window->uiShow(), unique)) {
 			return;
@@ -4678,7 +4721,7 @@ void DefaultGiftHandler(
 			MTP_inputInvoiceStarGiftTransfer(
 				Api::InputSavedStarGiftId(savedId, unique),
 				peer->input()),
-			formReady);
+			crl::guard(&state->guard, formReady));
 	} else if (star && star->resale) {
 		const auto id = star->info.id;
 		if (state->resaleRequestingId == id) {
@@ -4997,13 +5040,7 @@ void SendGiftBox(
 		.randomId = base::RandomValue<uint64>(),
 		.upgraded = disallowLimited && (costToUpgrade > 0) && !disallowUnique,
 	};
-	peer->updateFull();
-	state->messageAllowed = peer->session().changes().peerFlagsValue(
-		peer,
-		Data::PeerUpdate::Flag::StarsPerMessage
-	) | rpl::map([=] {
-		return peer->starsPerMessageChecked() == 0;
-	});
+	state->messageAllowed = StarGiftMessageAllowedValue(peer);
 
 	auto cost = state->details.value(
 	) | rpl::map([](const GiftSendDetails &details) {

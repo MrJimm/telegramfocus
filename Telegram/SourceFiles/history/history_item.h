@@ -188,7 +188,6 @@ public:
 	void dependencyItemRemoved(not_null<HistoryItem*> dependency);
 	void dependencyStoryRemoved(not_null<Data::Story*> dependency);
 	void updateDependencyItem();
-	[[nodiscard]] MsgId dependencyMsgId() const;
 	[[nodiscard]] bool notificationReady() const;
 	[[nodiscard]] PeerData *specialNotificationPeer() const;
 	void checkStoryForwardInfo();
@@ -246,7 +245,6 @@ public:
 	void setMainView(not_null<HistoryView::Element*> view) {
 		_mainView = view;
 	}
-	void refreshMainView();
 	void clearMainView();
 	void removeMainView(
 		Data::ViewRemovalReason reason = Data::ViewRemovalReason::Removed);
@@ -276,6 +274,7 @@ public:
 	void setHasUnreadPollVote();
 	[[nodiscard]] bool hasUnwatchedEffect() const;
 	bool markEffectWatched();
+	bool markEmojiInteractionWatched();
 	[[nodiscard]] bool isUnreadMedia() const;
 	[[nodiscard]] bool isIncomingUnreadMedia() const;
 	[[nodiscard]] bool hasUnreadMediaFlag() const;
@@ -354,6 +353,12 @@ public:
 	[[nodiscard]] bool isEphemeral() const {
 		return _flags & MessageFlag::Ephemeral;
 	}
+	[[nodiscard]] bool isFakeHistoryItem() const {
+		return _flags & MessageFlag::FakeHistoryItem;
+	}
+	[[nodiscard]] bool isLegacyMessage() const {
+		return _flags & MessageFlag::Legacy;
+	}
 	[[nodiscard]] bool canBeSelected() const;
 	[[nodiscard]] bool isFakeAboutView() const {
 		return _flags & MessageFlag::FakeAboutView;
@@ -390,7 +395,6 @@ public:
 	void setCommentsPossibleMaxId(MsgId possibleMaxId);
 	[[nodiscard]] bool areCommentsUnread() const;
 
-	[[nodiscard]] FullMsgId commentsItemId() const;
 	void setCommentsItemId(FullMsgId id);
 
 	[[nodiscard]] bool needCheck() const;
@@ -407,6 +411,7 @@ public:
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media,
 		const MTPRichMessage *richMessage);
+	void applyStreamedDraftFinish(const MTPDmessage &data);
 	void applySentMessage(const MTPDmessage &data);
 	void applySentMessage(
 		const QString &text,
@@ -456,8 +461,9 @@ public:
 	[[nodiscard]] TextForMimeData clipboardText() const;
 
 	bool changeViewsCount(int count);
+	bool changeForwardsCount(int count);
 	void setForwardsCount(int count);
-	void setReplies(HistoryMessageRepliesData &&data);
+	void setReplies(HistoryMessageRepliesData &&data, bool notify = true);
 	void clearReplies();
 	void changeRepliesCount(int delta, PeerId replier);
 	void setReplyFields(
@@ -601,6 +607,7 @@ public:
 
 	[[nodiscard]] bool showForwardsFromSender(
 		not_null<const HistoryMessageForwarded*> forwarded) const;
+	[[nodiscard]] bool displayForwardedFrom() const;
 
 	[[nodiscard]] bool isEmpty() const;
 	[[nodiscard]] MessageGroupId groupId() const;
@@ -696,9 +703,6 @@ private:
 	void detectTextLinks(const TextWithEntities &textWithEntities);
 	void setTextValue(TextWithEntities text, bool force = false);
 	[[nodiscard]] bool isTooOldForEdit(TimeId now) const;
-	[[nodiscard]] bool isLegacyMessage() const {
-		return _flags & MessageFlag::Legacy;
-	}
 
 	[[nodiscard]] bool checkDiscussionLink(ChannelId id) const;
 	void updateSentContent(
@@ -715,6 +719,7 @@ private:
 	void changeReplyToTopCounter(
 		not_null<HistoryMessageReply*> reply,
 		int delta);
+	bool updateRepliesText(not_null<HistoryMessageViews*> views);
 	void refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize = false);
@@ -736,6 +741,9 @@ private:
 	void clearDependencyMessage();
 	void setupChatThemeChange();
 	void setupTTLChange();
+	void setupTonConnectRequest();
+	void armTonConnectRequestExpiry();
+	void updateTonConnectRequestText();
 
 	void translationToggle(
 		not_null<HistoryMessageTranslation*> translation,
@@ -782,6 +790,9 @@ private:
 	[[nodiscard]] PreparedServiceText preparePinnedText();
 	[[nodiscard]] PreparedServiceText prepareGameScoreText();
 	[[nodiscard]] PreparedServiceText preparePaymentSentText();
+	[[nodiscard]] PreparedServiceText prepareGramTransferText(
+		bool includeComment = true);
+	[[nodiscard]] PreparedServiceText prepareTonConnectRequestText();
 	[[nodiscard]] PreparedServiceText prepareStoryMentionText();
 	[[nodiscard]] PreparedServiceText prepareInvitedToCallText(
 		const std::vector<not_null<UserData*>> &users,

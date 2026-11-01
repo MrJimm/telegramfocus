@@ -219,6 +219,19 @@ void PhonePartInput::correctValue(
 }
 
 void PhonePartInput::addedToNumber(const QString &added) {
+	if (_addingToNumber) {
+		// Re-entered from inside setFocus() below: on Windows a focus
+		// change while an IME composition is still open makes
+		// QWindowsInputContext::reset() re-send the same commit event to
+		// the country code field, which corrects its value and fires
+		// addedToNumber() again, until the stack overflows.
+		return;
+	}
+	_addingToNumber = true;
+	const auto guard = gsl::finally([&] {
+		_addingToNumber = false;
+	});
+
 	setFocus();
 	auto wasText = getLastText();
 	auto wasCursor = cursorPosition();
@@ -410,7 +423,10 @@ void PhoneInput::correctValue(
 	}
 
 	QString newText;
-	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = qMin(digits.size(), kMaxPhoneCodeLength + kMaxPhoneTailLength);
+	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount
+		= std::min(
+		int(digits.size()),
+		kMaxPhoneCodeLength + kMaxPhoneTailLength);
 
 	bool inPart = !_pattern.isEmpty(), plusFound = false;
 	int curPart = 0, leftInPart = inPart ? _pattern.at(curPart) : 0;

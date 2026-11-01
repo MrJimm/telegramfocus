@@ -38,19 +38,27 @@ DisableProgramGroupPage=no
 WizardStyle=modern
 ; This community build is intentionally unsigned. The upstream signing key is private.
 
+#ifndef MyOutputBaseFilename
+  #if MyBuildTarget == "winarm"
+    #define MyOutputBaseFilename "TelegramFocus-" + MyAppVersionFull + "-arm64-setup"
+  #elif MyBuildTarget == "win64"
+    #define MyOutputBaseFilename "TelegramFocus-" + MyAppVersionFull + "-x64-setup"
+  #else
+    #define MyOutputBaseFilename "TelegramFocus-" + MyAppVersionFull + "-x86-setup"
+  #endif
+#endif
+OutputBaseFilename={#MyOutputBaseFilename}
+
 #if MyBuildTarget == "winarm"
   ArchitecturesAllowed="arm64"
-  OutputBaseFilename=tsetup-arm64.{#MyAppVersionFull}
   #define ArchModulesFolder "arm64"
   AppVerName={#MyAppName} {#MyAppVersion} arm64
 #elif MyBuildTarget == "win64"
   ArchitecturesAllowed="x64compatible"
   ArchitecturesInstallIn64BitMode="x64compatible"
-  OutputBaseFilename=TelegramFocus-{#MyAppVersionFull}-x64-setup
   #define ArchModulesFolder "x64"
   AppVerName={#MyAppName} {#MyAppVersion} 64bit
 #else
-  OutputBaseFilename=tsetup.{#MyAppVersionFull}
   #define ArchModulesFolder "x86"
   AppVerName={#MyAppName} {#MyAppVersion} 32bit
 #endif

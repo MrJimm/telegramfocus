@@ -69,6 +69,9 @@ class InputField;
 class Show;
 class VerticalLayout;
 
+[[nodiscard]] rpl::producer<bool> StarGiftMessageAllowedValue(
+	not_null<PeerData*> peer);
+
 [[nodiscard]] not_null<InputField*> AddStarGiftMessageField(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<VerticalLayout*> container,
@@ -90,6 +93,7 @@ void ChooseStarGiftRecipient(
 	not_null<Main::Session*> session,
 	const std::vector<UserId> &exclude = {});
 
+[[nodiscard]] bool CanSendStarGiftTo(not_null<PeerData*> peer);
 void ShowStarGiftBox(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);
@@ -174,6 +178,9 @@ void ShowGiftTransferredToast(
 	not_null<PeerData*> to,
 	const Data::UniqueGift &gift);
 
+[[nodiscard]] bool ShowGiftErrorToast(
+	std::shared_ptr<Ui::Show> show,
+	const QString &type);
 [[nodiscard]] bool ShowGiftErrorToast(
 	std::shared_ptr<Ui::Show> show,
 	const MTP::Error &error);

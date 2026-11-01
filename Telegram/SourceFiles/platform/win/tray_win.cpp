@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "storage/localstorage.h"
+#include "tray.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/popup_menu.h"
@@ -254,6 +255,7 @@ void Tray::updateIcon() {
 			Core::App().settings().trayIconMonochrome(),
 			session && session->supportMode()));
 	_icon->updateIcon(forTrayIcon);
+	_icon->updateToolTip(Core::TrayIconToolTip());
 }
 
 void Tray::createMenu() {

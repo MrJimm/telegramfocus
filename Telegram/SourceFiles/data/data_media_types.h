@@ -210,6 +210,8 @@ struct GiftCode {
 
 inline constexpr auto kTimeToLiveSingleView = crl::time(0x7FFFFFFF);
 
+class MediaDice;
+
 class Media {
 public:
 	Media(not_null<HistoryItem*> parent);
@@ -269,6 +271,7 @@ public:
 	virtual bool dropForwardedInfo() const;
 	virtual bool forceForwardedInfo() const;
 	[[nodiscard]] virtual bool hasSpoiler() const;
+	[[nodiscard]] bool hasSpoilerForPreview() const;
 	[[nodiscard]] virtual crl::time ttlSeconds() const;
 	[[nodiscard]] bool ttlSecondsSingleView() const;
 

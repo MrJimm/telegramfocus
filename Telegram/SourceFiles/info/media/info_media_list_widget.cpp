@@ -164,6 +164,8 @@ ListWidget::ListWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _provider(MakeProvider(_controller))
+, _sectionsSortedById(!controller->isDownloads()
+	&& !controller->isGlobalMedia())
 , _checkMoveToOtherViewer([=] { checkMoveToOtherViewer(); })
 , _rowsScrollCache([=] { update(); })
 , _dateBadge(std::make_unique<DateBadge>(
@@ -1482,11 +1484,12 @@ void ListWidget::showContextMenu(
 	if (item->isHistoryEntry()) {
 		_contextMenu->addAction(
 			tr::lng_context_to_msg(tr::now),
-			[=] {
+			crl::guard(this, [=] {
 				if (const auto item = MessageByGlobalId(globalId)) {
+					_controller->notifyJumpToMessage();
 					JumpToMessageClickHandler(item)->onClick({});
 				}
-			},
+			}),
 			&st::menuIconShowInChat);
 	}
 
@@ -1661,14 +1664,21 @@ void ListWidget::showContextMenu(
 		}
 		if (const auto peer = _controller->key().storiesPeer()) {
 			if (!peer->isSelf() && IsStoryMsgId(globalId.itemId.msg)) {
-				::Media::Stories::AddStealthModeMenu(
-					Ui::Menu::CreateAddActionCallback(_contextMenu),
-					peer,
-					_controller->parentController());
 				const auto storyId = FullStoryId{
 					globalId.itemId.peer,
 					StoryIdFromMsgId(globalId.itemId.msg),
 				};
+				const auto albumId = _controller->storiesAlbumId();
+				::Media::Stories::AddStealthModeMenu(
+					Ui::Menu::CreateAddActionCallback(_contextMenu),
+					peer,
+					_controller->parentController(),
+					crl::guard(this, [=] {
+						_controller->parentController()->openPeerStory(
+							peer,
+							storyId.story,
+							{ Data::StoriesContextAlbum{ albumId } });
+					}));
 				_contextMenu->addAction(
 					tr::lng_profile_report(tr::now),
 					[=] { ::Media::Stories::ReportRequested(
@@ -2128,7 +2138,7 @@ void ListWidget::leaveEventHook(QEvent *e) {
 
 QPoint ListWidget::clampMousePosition(QPoint position) const {
 	return {
-		std::clamp(position.x(), 0, qMax(0, width() - 1)),
+		std::clamp(position.x(), 0, std::max(0, width() - 1)),
 		std::clamp(position.y(), _visibleTop, _visibleBottom - 1)
 	};
 }
@@ -2232,8 +2242,8 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 				++second;
 			}
 			auto selState = TextSelection {
-				qMin(second, _mouseTextSymbol),
-				qMax(second, _mouseTextSymbol)
+				std::min(second, _mouseTextSymbol),
+				std::max(second, _mouseTextSymbol)
 			};
 			if (_mouseSelectType != TextSelectType::Letters) {
 				selState = _overLayout->adjustSelection(selState, _mouseSelectType);
@@ -2483,6 +2493,13 @@ void ListWidget::performDrag() {
 		pressedHandler->property(
 			kDocumentLinkMediaProperty).toULongLong());
 	if (document) {
+		const auto peer = (_controller->isDownloads() && _pressState.item)
+			? _pressState.item->history()->peer.get()
+			: _controller->key().peer();
+		if ((peer && !peer->allowsForwarding())
+			|| (_pressState.item && _pressState.item->forbidsForward())) {
+			return;
+		}
 		const auto filepath = document->filepath(true);
 		if (filepath.isEmpty()) {
 			return;
@@ -2661,7 +2678,7 @@ std::vector<ListSection>::iterator ListWidget::findSectionByItem(
 	if (_sections.size() < 2) {
 		return _sections.begin();
 	}
-	Assert(!_controller->isDownloads() && !_controller->isGlobalMedia());
+	Assert(_sectionsSortedById);
 	return ranges::lower_bound(
 		_sections,
 		GetUniversalId(item),

@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_manager.h"
 #include "export/view/export_view_panel_controller.h"
 #include "mtproto/mtproto_config.h"
+#include "wallet/wallet_session.h"
+#include "wallet/wallet_transfer_messages.h"
 #include "window/notifications_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -822,7 +824,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				? result->phone()
 				: qs(data.vphone().value_or_empty());
 			const auto uname = minimal
-				? result->username()
+				? result->editableUsername()
 				: TextUtilities::SingleLine(
 					qs(data.vusername().value_or_empty()));
 
@@ -1870,7 +1872,6 @@ void Session::setupChannelLeavingViewer() {
 		} else {
 			if (const auto history = historyLoaded(channel->id)) {
 				history->removeJoinedMessage();
-				history->clear(History::ClearType::Unload);
 				history->updateChatListExistence();
 				history->updateChatListSortPosition();
 				if (!history->inChatList()) {
@@ -1989,24 +1990,6 @@ void Session::requestDocumentViewRepaint(
 	if (i != end(_documentItems)) {
 		for (const auto &item : i->second) {
 			requestItemRepaint(item);
-		}
-	}
-}
-
-void Session::requestPollViewRepaint(not_null<const PollData*> poll) {
-	if (const auto i = _pollViews.find(poll); i != _pollViews.end()) {
-		for (const auto &view : i->second) {
-			requestViewResize(view);
-		}
-	}
-}
-
-void Session::requestTodoListViewRepaint(
-		not_null<const TodoListData*> todolist) {
-	if (const auto i = _todoListViews.find(todolist)
-		; i != _todoListViews.end()) {
-		for (const auto &view : i->second) {
-			requestViewResize(view);
 		}
 	}
 }
@@ -3190,8 +3173,13 @@ void Session::scheduleNextTTLs() {
 	const auto now = base::unixtime::now();
 
 	// Set timer not more than for 24 hours.
-	const auto maxTimeout = TimeId(86400);
-	const auto timeout = std::min(std::max(now, nearest) - now, maxTimeout);
+	//
+	// In 64-bit and floored at zero: after the OS corrects a badly wrong
+	// clock unixtime::now() can come back wrapped, and the int32 subtraction
+	// then overflows into a negative interval, which base::Timer asserts on.
+	const auto maxTimeout = crl::time(86400);
+	const auto delay = crl::time(nearest) - crl::time(now);
+	const auto timeout = std::min(std::max(delay, crl::time(0)), maxTimeout);
 	_ttlCheckTimer.callOnce(timeout * crl::time(1000));
 }
 
@@ -3295,8 +3283,14 @@ void Session::checkMediaDestroys() {
 void Session::registerFormattedDateUpdate(
 		TimeId when,
 		not_null<HistoryView::Element*> view) {
-	_formattedDateUpdates[when].push_back(
-		base::make_weak(view.get()));
+	auto &list = _formattedDateUpdates[when];
+	const auto already = ranges::any_of(list, [&](const auto &weak) {
+		return (weak.get() == view.get());
+	});
+	if (already) {
+		return;
+	}
+	list.push_back(base::make_weak(view.get()));
 	const auto nearest = _formattedDateUpdates.begin()->first;
 	if (nearest < when && _formattedDateTimer.isActive()) {
 		return;
@@ -3598,9 +3592,23 @@ HistoryItem *Session::addNewMessage(
 			if (const auto streamed = h->streamedDraftsIfExists()) {
 				if (const auto adopted = streamed->adoptIncoming(
 						data.c_message())) {
+					fillMessagePeers(peerId, data);
 					CheckForSwitchInlineButton(adopted);
 					return adopted;
 				}
+			}
+		}
+	}
+
+	if (type == NewMessageType::Unread
+		&& data.type() == mtpc_messageService) {
+		if (const auto h = historyLoaded(peerId)) {
+			auto &drafts = _session->wallet().transferMessages();
+			if (const auto adopted = drafts.adopt(
+					h,
+					id,
+					data.c_messageService())) {
+				return adopted;
 			}
 		}
 	}
@@ -3652,13 +3660,6 @@ bool Session::unreadBadgeMutedIgnoreOne(Dialogs::Key key) const {
 		? key.entry()->chatListUnreadState()
 		: Dialogs::UnreadState();
 	return computeUnreadBadgeMuted(_chatsList.unreadState() - remove);
-}
-
-int Session::unreadOnlyMutedBadge() const {
-	const auto state = _chatsList.unreadState();
-	return Core::App().settings().countUnreadMessages()
-		? state.messagesMuted
-		: state.chatsMuted;
 }
 
 rpl::producer<> Session::unreadBadgeChanges() const {

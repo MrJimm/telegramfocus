@@ -34,6 +34,7 @@ bool StripWrapperEntityInEditMode(EntityType type) {
 	case EntityType::BotCommand:
 	case EntityType::Phone:
 	case EntityType::BankCard:
+	case EntityType::TonAddress:
 		return true;
 	default:
 		return false;
@@ -463,9 +464,7 @@ bool DegradeBlockOnlyEntities(TextWithEntities &text) {
 			entities.push_back(std::move(entity));
 		}
 	}
-	if (result) {
-		text.entities = std::move(entities);
-	}
+	text.entities = std::move(entities);
 	return result;
 }
 

@@ -249,6 +249,8 @@ historySilentTop: -13px;
 
 historyBotMenuSkip: 8px;
 historyBotMenuMaxWidth: 160px;
+historyBotMenuIconSize: 18px;
+historyBotMenuIconWidth: 36px;
 historyBotMenuButton: RoundButton(defaultActiveButton) {
 	width: -24px;
 	height: 30px;
@@ -453,8 +455,13 @@ historyTranscribeRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialA
 
 historyVideoMessageMuteSize: 25px;
 historyVideoMessageProgressOpacity: 0.72;
-historyVideoMessageSeekInset: 12px;
-historyVideoMessageSeekDotSize: 13px;
+historyVideoMessageSeekInset: 18px;
+historyVideoMessageSeekLine: 5px;
+historyVideoMessageSeekDotSize: 16px;
+historyVideoMessageSeekDotSizeMin: 6px;
+historyVideoMessageSeekDotSizeGrabbed: 22px;
+historyVideoMessageSeekGrabBand: 40px;
+historyVideoMessageSeekShadowOpacity: 0.16;
 
 historyAdminLogEmptyWidth: 260px;
 historyAdminLogEmptyPadding: margins(10px, 12px, 10px, 12px);
@@ -545,6 +552,7 @@ historyPageButtonPadding: margins(13px, 8px, 13px, 8px);
 historyPageEnlargeSize: 36px;
 historyPageEnlargeSkip: 4px;
 historyPageEnlargeRadius: 8px;
+historyPageEnlargeRippleOpacity: 0.3;
 
 historyCommentsButtonHeight: 40px;
 historyCommentsSkipLeft: 9px;
@@ -597,33 +605,6 @@ videoIcon: icon {
 	{ "media_video_play", videoPlayIconFg, point(12px, 12px) },
 };
 
-SliderForTTL {
-	font: font;
-	textFg: color;
-	pointSize: pixels;
-	chosenSize: pixels;
-	skip: pixels;
-	stroke: pixels;
-	activeFg: color;
-	inactiveFg: color;
-	dashOn: pixels;
-	dashOff: pixels;
-}
-
-defaultSliderForTTL: SliderForTTL {
-	font: normalFont;
-	textFg: windowSubTextFg;
-	pointSize: 6px;
-	chosenSize: 12px;
-	skip: 8px;
-	stroke: 2px;
-	activeFg: mediaPlayerActiveFg;
-	inactiveFg: mediaPlayerInactiveFg;
-	dashOn: 8px;
-	dashOff: 5px;
-}
-ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
-
 ttlItemPadding: margins(0px, 4px, 0px, 4px);
 ttlItemTimerFont: font(12px);
 
@@ -647,17 +628,8 @@ whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 400px;
 }
-whoReadDropdownMenu: DropdownMenu(dropdownMenuWithIcons) {
-	wrap: InnerDropdown(defaultInnerDropdown) {
-		scrollPadding: margins(0px, 8px, 0px, 8px);
-	}
-	menu: Menu(menuWithIcons) {
-		separator: expandedMenuSeparator;
-	}
-}
-whoReadDropdownMenuMaxHeight: 400px;
-whoReadDropdownMenuSkip: 24px;
-reactionPreviewEdgeSkip: 16px;
+reactionPreviewInMenuSize: 120px;
+reactionPreviewInMenuSkip: 8px;
 whoReadNameWithDateTop: 3px;
 whoReadDateTop: 20px;
 whoReadDateSkip: 15px;
@@ -783,8 +755,8 @@ msgServiceGiftThemeStickerSize: 64px;
 msgServiceGiftThemeStickerPadding: margins(18px, 18px, 18px, 18px);
 msgServiceCommunityAddedPhoto: 66px; // About 2/3 of msgServicePhotoWidth.
 
-unsupportedNoticePadding: margins(12px, 7px, 12px, 7px);
-unsupportedNoticeBadgeSize: 44px;
+unsupportedNoticePadding: margins(0px, 7px, 12px, 7px);
+unsupportedNoticeBadgeSize: 36px;
 unsupportedNoticeBadgeSkip: 10px;
 unsupportedNoticeButtonHeight: 30px;
 unsupportedNoticeButtonPadding: margins(12px, 0px, 12px, 0px);

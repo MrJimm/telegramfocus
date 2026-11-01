@@ -124,7 +124,6 @@ public:
 		Fn<void()> &&callback,
 		QPixmap pixmap = QPixmap());
 
-	[[nodiscard]] rpl::producer<> leaveEvents() const;
 	[[nodiscard]] rpl::producer<> imeCompositionStarts() const;
 
 	virtual void updateWindowIcon() = 0;
@@ -147,8 +146,6 @@ public:
 	}
 
 protected:
-	void leaveEventHook(QEvent *e) override;
-
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
 	void handleStateChanged(Qt::WindowState state);
 	void handleActiveChanged(bool active);
@@ -195,6 +192,8 @@ protected:
 
 private:
 	void refreshTitleWidget();
+	void setupCanaryTitleLabel();
+	[[nodiscard]] QString nativeTitleSuffix() const;
 	void updateMinimumSize();
 	void updatePalette();
 
@@ -218,7 +217,6 @@ private:
 
 	bool _isActive = false;
 
-	rpl::event_stream<> _leaveEvents;
 	rpl::event_stream<> _imeCompositionStartReceived;
 
 	bool _maximizedBeforeHide = false;

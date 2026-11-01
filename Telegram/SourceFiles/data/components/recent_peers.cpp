@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/version.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_thread.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "storage/serialize_common.h"
@@ -21,12 +22,6 @@ namespace {
 
 constexpr auto kLimit = 48;
 constexpr auto kMaxRememberedOpenChats = 32;
-
-[[nodiscard]] bool IsAllowedPeer(
-		not_null<const Main::Session*> session,
-		not_null<PeerData*> peer) {
-	return session->isRestrictedPeerAllowed(peer);
-}
 
 [[nodiscard]] bool IsAllowedThread(
 		not_null<const Main::Session*> session,
@@ -44,13 +39,8 @@ RecentPeers::~RecentPeers() = default;
 
 const std::vector<not_null<PeerData*>> &RecentPeers::list() const {
 	_session->local().readSearchSuggestions();
-	auto &self = *const_cast<RecentPeers*>(this);
-	self._list.erase(
-		ranges::remove_if(self._list, [&](not_null<PeerData*> peer) {
-			return !IsAllowedPeer(_session, peer);
-		}),
-		end(self._list));
-	return self._list;
+
+	return _list;
 }
 
 rpl::producer<> RecentPeers::updates() const {
@@ -68,10 +58,6 @@ void RecentPeers::remove(not_null<PeerData*> peer) {
 
 void RecentPeers::bump(not_null<PeerData*> peer) {
 	_session->local().readSearchSuggestions();
-	if (!IsAllowedPeer(_session, peer)) {
-		remove(peer);
-		return;
-	}
 
 	if (!_list.empty() && _list.front() == peer) {
 		return;
@@ -143,9 +129,9 @@ void RecentPeers::applyLocal(QByteArray serialized) {
 			_session,
 			streamAppVersion,
 			stream);
-		if (stream.ok() && peer && IsAllowedPeer(_session, peer)) {
+		if (stream.ok() && peer) {
 			_list.push_back(peer);
-		} else if (!(stream.ok() && peer)) {
+		} else {
 			_list.clear();
 			DEBUG_LOG(("Suggestions: Failed RecentPeers reading %1 / %2."
 				).arg(i + 1
@@ -163,8 +149,9 @@ std::vector<not_null<Thread*>> RecentPeers::collectChatOpenHistory() const {
 	_session->local().readSearchSuggestions();
 	auto result = std::vector<not_null<Thread*>>();
 	result.reserve(_opens.size());
-	for (const auto &thread : _opens) {
-		if (IsAllowedThread(_session, thread)) {
+	for (const auto &weak : _opens) {
+		if (const auto thread = weak.get();
+			thread && IsAllowedThread(_session, thread)) {
 			result.push_back(thread);
 		}
 	}
@@ -176,19 +163,27 @@ void RecentPeers::chatOpenPush(not_null<Thread*> thread) {
 		chatOpenRemove(thread);
 		return;
 	}
-	const auto i = ranges::find(_opens, thread);
+	_opens.erase(
+		ranges::remove(_opens, nullptr, &base::weak_ptr<Thread>::get),
+		end(_opens));
+	const auto i = ranges::find(
+		_opens,
+		thread.get(),
+		&base::weak_ptr<Thread>::get);
 	if (i == end(_opens)) {
 		while (_opens.size() >= kMaxRememberedOpenChats) {
 			_opens.pop_back();
 		}
-		_opens.insert(begin(_opens), thread);
+		_opens.insert(begin(_opens), base::make_weak(thread));
 	} else if (i != begin(_opens)) {
 		ranges::rotate(begin(_opens), i, i + 1);
 	}
 }
 
 void RecentPeers::chatOpenRemove(not_null<Thread*> thread) {
-	_opens.erase(ranges::remove(_opens, thread), end(_opens));
+	_opens.erase(
+		ranges::remove(_opens, thread.get(), &base::weak_ptr<Thread>::get),
+		end(_opens));
 }
 
 void RecentPeers::chatOpenKeepUserpics(

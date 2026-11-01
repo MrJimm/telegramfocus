@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/button_context_menu.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/new_badges.h"
 #include "ui/text/text_utilities.h"
@@ -49,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_phone_menu.h"
 #include "lang/lang_keys.h"
+#include "menu/menu_mark_as_read.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
@@ -506,31 +508,7 @@ void SetupChatAutomation(
 		controller->showSettings(Settings::ChatbotsId());
 	});
 
-	{
-		const auto badge = Ui::NewBadge::CreateNewBadge(
-			button,
-			tr::lng_premium_summary_new_badge()).get();
-		rpl::combine(
-			std::move(title),
-			button->widthValue()
-		) | rpl::on_next([=, &st](
-				const QString &text,
-				int width) {
-			const auto space = st.style.font->spacew;
-			const auto left = st.padding.left()
-				+ st.style.font->width(text)
-				+ space;
-			const auto available = width - left - st.padding.right();
-			badge->setVisible(available >= badge->width());
-			if (!badge->isHidden()) {
-				const auto top = st.padding.top()
-					+ st.style.font->ascent
-					- st::settingsPremiumNewBadge.style.font->ascent
-					- st::settingsPremiumNewBadgePadding.top();
-				badge->moveToLeft(left, top, width);
-			}
-		}, badge->lifetime());
-	}
+	Ui::NewBadge::AddAfterButtonText(button, std::move(title), st);
 
 	if (targets) {
 		targets->chatAutomation = button;
@@ -868,7 +846,6 @@ void SetupAccountsWrap(
 
 		Ui::RpWidget userpic;
 		Ui::PeerUserpicView view;
-		base::unique_qptr<Ui::PopupMenu> menu;
 	};
 	const auto state = raw->lifetime().make_state<State>(raw);
 
@@ -909,22 +886,15 @@ void SetupAccountsWrap(
 	) | rpl::on_next([=](Qt::MouseButton which) {
 		if (which == Qt::LeftButton) {
 			callback(raw->clickModifiers());
-			return;
 		} else if (which == Qt::MiddleButton) {
 			callback(Qt::ControlModifier);
-			return;
-		} else if (which != Qt::RightButton) {
-			return;
 		}
-		if (state->menu) {
-			return;
-		}
+	}, raw->lifetime());
+
+	Ui::SetupButtonContextMenu(raw, &st::popupMenuExpandedSeparator, [=](
+			not_null<Ui::PopupMenu*> menu) {
 		const auto isActive = session == &window->session();
-		state->menu = base::make_unique_q<Ui::PopupMenu>(
-			raw,
-			st::popupMenuExpandedSeparator);
-		const auto addAction = Ui::Menu::CreateAddActionCallback(
-			state->menu);
+		const auto addAction = Ui::Menu::CreateAddActionCallback(menu);
 		if (!isActive) {
 			addAction(tr::lng_context_new_window(tr::now), [=] {
 				Ui::PreventDelayedActivation();
@@ -944,7 +914,7 @@ void SetupAccountsWrap(
 					callback({});
 				}, &st::menuIconProfile);
 			}
-			Window::MenuAddMarkAsReadAllChatsAction(
+			MarkAsReadMenu::AddAllChatsAction(
 				session,
 				window->uiShow(),
 				addAction);
@@ -958,7 +928,8 @@ void SetupAccountsWrap(
 				};
 				window->show(
 					Ui::MakeConfirmBox({
-						.text = tr::lng_sure_logout(),
+						.text = Window::LogoutConfirmationText(
+							&session->account()),
 						.confirmed = crl::guard(session, callback),
 						.confirmText = tr::lng_settings_logout(),
 						.confirmStyle = &st::attentionBoxButton,
@@ -972,8 +943,7 @@ void SetupAccountsWrap(
 				.isAttention = true,
 			});
 		}
-		state->menu->popup(QCursor::pos());
-	}, raw->lifetime());
+	});
 
 	return result;
 }

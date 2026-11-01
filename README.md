@@ -5,6 +5,8 @@ Telegram Focus is a modification of the official [Telegram Desktop][telegram_des
 
 The filtering happens only inside Telegram Focus. It does not unsubscribe you from chats, change your Telegram folders, or affect how chats appear in other Telegram clients.
 
+Wallet features keep the standard Telegram Desktop behavior, including recipient search and transfers.
+
 In every other respect, it is the same fully functional Telegram Desktop client as the corresponding upstream version.
 
 You can still doomscroll on your phone, while staying clean on your desktop!
@@ -105,6 +107,8 @@ The source code is published under GPLv3 with the OpenSSL exception. See the [li
 * CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
 * Hunspell ([LGPL](https://github.com/hunspell/hunspell/blob/master/COPYING.LESSER))
 * Ada ([Apache License 2.0](https://github.com/ada-url/ada/blob/main/LICENSE-APACHE))
+* zxcvbn-c ([MIT License](https://github.com/tsyrogit/zxcvbn-c/blob/master/LICENSE.txt))
+* FrequencyWords by Hermit Dave ([Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/))
 
 
 [//]: # (LINKS)

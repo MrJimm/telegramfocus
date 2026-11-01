@@ -758,7 +758,11 @@ void Controller::rebuildFromContext(
 		hideSiblings();
 	}, [&](StorySourcesList list) {
 		source = stories.source(peerId);
-		const auto &sources = stories.sources(list);
+		const auto sources = stories.sources(list)
+			| ranges::views::filter([&](const StoriesSourceInfo &info) {
+				return peer->session().isRestrictedPeerAllowed(info.id);
+			})
+			| ranges::to_vector;
 		const auto i = ranges::find(
 			sources,
 			storyId.peer,
@@ -773,6 +777,10 @@ void Controller::rebuildFromContext(
 			if (int(sources.end() - i) < kPreloadPeersCount) {
 				stories.loadMore(list);
 			}
+		} else {
+			_cachedSourcesList.clear();
+			_cachedSourceIndex = 0;
+			hideSiblings();
 		}
 	});
 	_sliderIndex = 0;
@@ -1024,6 +1032,18 @@ void Controller::subscribeToSession() {
 	if (!_session) {
 		return;
 	}
+	_session->restrictedAllowlistChanges(
+	) | rpl::on_next([=] {
+		const auto peer = shownPeer();
+		if (!peer) {
+			return;
+		} else if (!_session->isRestrictedPeerAllowed(peer)) {
+			_delegate->storiesClose();
+			return;
+		}
+		_cachedSourcesList.clear();
+		rebuildFromContext(peer, _shown);
+	}, _sessionLifetime);
 	_session->changes().storyUpdates(
 		Data::StoryUpdate::Flag::Destroyed
 	) | rpl::on_next([=](Data::StoryUpdate update) {

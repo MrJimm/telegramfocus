@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonObject>
 #include <QtCore/QSaveFile>
 
+#include <limits>
+
 namespace Main {
 namespace {
 
@@ -49,8 +51,12 @@ const auto kSyncFromFolderKey = u"syncFromFolder"_q;
 		return ok ? std::optional<quint64>(parsed) : std::nullopt;
 	} else if (value.isDouble()) {
 		const auto number = value.toDouble();
+		if (!(number >= 0.)
+			|| number >= double(std::numeric_limits<quint64>::max())) {
+			return std::nullopt;
+		}
 		const auto parsed = quint64(number);
-		return (number >= 0.) && (double(parsed) == number)
+		return (double(parsed) == number)
 			? std::optional<quint64>(parsed)
 			: std::nullopt;
 	} else if (value.isObject()) {

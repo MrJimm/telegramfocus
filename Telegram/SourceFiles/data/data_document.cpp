@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QBuffer>
 #include <QtCore/QMimeType>
 #include <QtCore/QMimeDatabase>
+#include <QtCore/QtEndian>
 
 namespace {
 
@@ -1087,6 +1088,14 @@ void DocumentData::permitLoadFromCloud() {
 	}
 }
 
+void DocumentData::setForbidsFileSave() {
+	_flags |= Flag::FileSaveForbidden;
+}
+
+bool DocumentData::forbidsFileSave() const {
+	return (_flags & Flag::FileSaveForbidden);
+}
+
 QString DocumentData::loadingFilePath() const {
 	return loading() ? _loader->fileName() : QString();
 }
@@ -1262,21 +1271,14 @@ void DocumentData::save(
 		status = FileReady;
 		auto reader = owner().streaming().sharedReader(this, origin, true);
 		if (reader) {
-			_loader = std::make_unique<Storage::StreamedFileDownloader>(
-				&session(),
-				id,
-				_dc,
-				origin,
-				Data::DocumentCacheKey(_dc, id),
-				mediaKey(),
+			_loader = createStreamedDownloader(
 				std::move(reader),
+				origin,
+				mediaKey(),
 				toFile,
-				size,
-				locationType(),
 				(saveToCache() ? LoadToCacheAsWell : LoadToFileOnly),
 				fromCloud,
-				autoLoading,
-				cacheTag());
+				autoLoading);
 		} else if (hasWebLocation()) {
 			_loader = std::make_unique<mtpFileLoader>(
 				&session(),
@@ -1402,14 +1404,14 @@ VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit) {
 	for (auto i = 0, l = valuesCount - 1; i != l; ++i) {
 		auto byteIndex = (i * 5) / 8;
 		auto bitShift = (i * 5) % 8;
-		auto value = *reinterpret_cast<const uint16*>(bitsData + byteIndex);
+		auto value = qFromUnaligned<uint16>(bitsData + byteIndex);
 		result[i] = static_cast<char>((value >> bitShift) & 0x1F);
 	}
 	auto lastByteIndex = ((valuesCount - 1) * 5) / 8;
 	auto lastBitShift = ((valuesCount - 1) * 5) % 8;
 	auto lastValue = (lastByteIndex == encoded5bit.size() - 1)
 		? static_cast<uint16>(*reinterpret_cast<const uchar*>(bitsData + lastByteIndex))
-		: *reinterpret_cast<const uint16*>(bitsData + lastByteIndex);
+		: qFromUnaligned<uint16>(bitsData + lastByteIndex);
 	result[valuesCount - 1] = static_cast<char>((lastValue >> lastBitShift) & 0x1F);
 
 	return result;
@@ -1428,7 +1430,8 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
 		auto byteIndex = (i * 5) / 8;
 		auto bitShift = (i * 5) % 8;
 		auto value = (static_cast<uint16>(waveform[i]) & 0x1F) << bitShift;
-		*reinterpret_cast<uint16*>(bitsData + byteIndex) |= value;
+		const auto previous = qFromUnaligned<uint16>(bitsData + byteIndex);
+		qToUnaligned(uint16(previous | value), bitsData + byteIndex);
 	}
 	result.resize(bytesCount);
 	return result;
@@ -1472,6 +1475,9 @@ bool DocumentData::saveFromDataSilent() {
 }
 
 bool DocumentData::saveFromDataChecked() {
+	if (forbidsFileSave()) {
+		return false;
+	}
 	const auto media = activeMediaView();
 	if (!media) {
 		return false;
@@ -1562,7 +1568,7 @@ Image *DocumentData::getReplyPreview(
 
 Image *DocumentData::getReplyPreview(not_null<HistoryItem*> item) {
 	const auto media = item->media();
-	const auto spoiler = media && media->hasSpoiler();
+	const auto spoiler = media && media->hasSpoilerForPreview();
 	return getReplyPreview(item->fullId(), item->history()->peer, spoiler);
 }
 
@@ -1642,6 +1648,32 @@ const VideoData *DocumentData::video() const {
 
 bool DocumentData::hasRemoteLocation() const {
 	return (_dc != 0 && _access != 0);
+}
+
+auto DocumentData::createStreamedDownloader(
+	std::shared_ptr<Media::Streaming::Reader> reader,
+	Data::FileOrigin origin,
+	std::optional<MediaKey> fileLocationKey,
+	const QString &toFile,
+	LoadToCacheSetting toCache,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading) const
+-> std::unique_ptr<Storage::StreamedFileDownloader> {
+	return std::make_unique<Storage::StreamedFileDownloader>(
+		&session(),
+		id,
+		_dc,
+		origin,
+		Data::DocumentCacheKey(_dc, id),
+		fileLocationKey,
+		std::move(reader),
+		toFile,
+		size,
+		locationType(),
+		toCache,
+		fromCloud,
+		autoLoading,
+		cacheTag());
 }
 
 bool DocumentData::useStreamingLoader() const {

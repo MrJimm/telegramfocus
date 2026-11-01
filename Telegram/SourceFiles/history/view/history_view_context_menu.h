@@ -21,7 +21,6 @@ class SessionShow;
 } // namespace Main
 
 namespace Ui {
-class DropdownMenu;
 class PopupMenu;
 class Show;
 enum class ReportReason;
@@ -102,6 +101,10 @@ void AddPollActions(
 	not_null<Window::SessionController*> controller,
 	bool skipRetractVote = false,
 	bool skipViewStats = false);
+void AddGiftMessageAction(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<HistoryItem*> item,
+	not_null<Window::SessionController*> controller);
 void AddSaveSoundForNotifications(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<HistoryItem*> item,
@@ -147,11 +150,6 @@ enum class EmojiPacksSource {
 	EmojiPacksSource source);
 void AddEmojiPacksAction(
 	not_null<Ui::PopupMenu*> menu,
-	std::vector<StickerSetIdentifier> packIds,
-	EmojiPacksSource source,
-	not_null<Window::SessionController*> controller);
-void AddEmojiPacksAction(
-	not_null<Ui::DropdownMenu*> menu,
 	std::vector<StickerSetIdentifier> packIds,
 	EmojiPacksSource source,
 	not_null<Window::SessionController*> controller);

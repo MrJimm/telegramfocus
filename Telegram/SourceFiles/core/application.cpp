@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_url_scheme.h"
 #include "base/platform/base_platform_last_input.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/base_platform_process.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_integration.h"
 #include "history/history.h"
@@ -83,15 +84,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/screen_reader_mode.h"
 #include "storage/storage_domain.h"
 #include "storage/storage_databases.h"
+#include "storage/storage_folder_archive.h"
 #include "storage/localstorage.h"
 #include "payments/payments_checkout_process.h"
 #include "export/export_manager.h"
+#include "wallet/wallet_panel.h"
 #include "webrtc/webrtc_environment.h"
+#include "webview/webview_interface.h"
 #include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "boxes/abstract_box.h"
+#include "boxes/keys_legend.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "boxes/premium_limits_box.h"
@@ -239,7 +244,7 @@ Application::Application()
 			},
 			.confirmText = tr::lng_proxy_web_open(tr::now),
 			.cancelText = tr::lng_cancel(tr::now),
-		}));
+		}), Ui::LayerOption::KeepOther);
 	}, _lifetime);
 }
 
@@ -248,6 +253,7 @@ void Application::closeAdditionalWindows() {
 	for (const auto &[index, account] : _domain->accounts()) {
 		if (account->sessionExists()) {
 			account->session().attachWebView().closeAll();
+			Wallet::CloseWallet(&account->session());
 		}
 	}
 	_iv->closeAll();
@@ -320,7 +326,9 @@ void Application::run() {
 
 	const auto oldSettingsVersion = Local::oldSettingsVersion();
 #if defined Q_OS_MAC && defined TDESKTOP_FOCUS_BUILD
-	autoRegisterUrlScheme();
+	if (!Test::Active()) {
+		autoRegisterUrlScheme();
+	}
 #else // defined Q_OS_MAC && defined TDESKTOP_FOCUS_BUILD
 	if (oldSettingsVersion < AppVersion) {
 		autoRegisterUrlScheme();
@@ -354,6 +362,8 @@ void Application::run() {
 	startSystemDarkModeViewer();
 	Media::Player::start(_audio.get());
 	Media::Encode::ClearStaleTempFiles();
+	Storage::ClearStaleArchiveFiles();
+	Webview::ClearStaleTemporaryStorage();
 
 	if (MediaControlsManager::Supported()) {
 		_mediaControlsManager = std::make_unique<MediaControlsManager>();
@@ -376,6 +386,9 @@ void Application::run() {
 	}, _lifetime);
 
 	DEBUG_LOG(("Application Info: inited..."));
+	LOG(("Qt version: %1 (compiled with %2)").arg(
+		QString::fromLatin1(qVersion()),
+		QString::fromLatin1(QT_VERSION_STR)));
 
 	DEBUG_LOG(("Application Info: starting app..."));
 
@@ -730,6 +743,8 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 			return true;
 		} else if (Shortcuts::HandlePossibleChatSwitch(event)) {
 			return true;
+		} else if (HandleKeysLegendHotkey(this, object, event)) {
+			return true;
 		}
 	} break;
 	case QEvent::MouseButtonPress:
@@ -782,8 +797,13 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 						}),
 						StartUrlRequiresActivate);
 					cRefStartUrls() << base::take(_urlsToOpen);
-					checkStartUrls();
-					if (_lastActivePrimaryWindow && activateRequired) {
+					const auto activated = checkStartUrlsActivating();
+					if (!activateRequired) {
+						return;
+					} else if (activated) {
+						base::Platform::ActivateThisProcessWindow(
+							activated->winId());
+					} else if (_lastActivePrimaryWindow) {
 						_lastActivePrimaryWindow->activate();
 					}
 				});
@@ -982,7 +1002,19 @@ void Application::setScreenIsLocked(bool locked) {
 }
 
 bool Application::screenIsLocked() const {
-	return _screenIsLocked;
+	return _screenIsLocked.current();
+}
+
+rpl::producer<bool> Application::screenIsLockedValue() const {
+	return _screenIsLocked.value();
+}
+
+void Application::notifySystemSleep() {
+	_systemSleep.fire({});
+}
+
+rpl::producer<> Application::systemSleepEvents() const {
+	return _systemSleep.events();
 }
 
 void Application::floatPlayerToggleGifsPaused(bool paused) {
@@ -1211,41 +1243,72 @@ void Application::checkStartUrls() {
 		return;
 	}
 	if (!Core::App().passcodeLocked()) {
-		cRefStartUrls() = ranges::views::all(
-			cRefStartUrls()
+		// WHY: tg://resolve?acc= switches the account, which shows the
+		// new main widget and re-enters here while we still iterate,
+		// so take the list out and merge whatever was added meanwhile.
+		const auto urls = base::take(cRefStartUrls());
+		auto left = ranges::views::all(
+			urls
 		) | ranges::views::filter([&](const QUrl &url) {
 			if (url.scheme() == u"tonsite"_q) {
 				iv().showTonSite(url.toString(), {});
 				return false;
+			} else if (url.scheme() == u"ton"_q) {
+				const auto window = _lastActivePrimaryWindow;
+				const auto controller = (window && !window->locked())
+					? window->sessionController()
+					: nullptr;
+				if (!controller) {
+					return true;
+				}
+				Wallet::OpenTransferLink(
+					controller,
+					url.toString(QUrl::FullyEncoded));
+				return false;
 			} else if (_lastActivePrimaryWindow) {
 				const auto local = TryConvertUrlToLocal(url.toString());
-				return !openLocalUrl(local, {});
+				return IsGetPremiumLocalUrl(local)
+					? !openInternalUrl(local, {})
+					: !openLocalUrl(local, {});
 			}
 			return true;
 		}) | ranges::to<QList<QUrl>>;
+		left.append(base::take(cRefStartUrls()));
+		cRefStartUrls() = std::move(left);
 	}
 	if (!cRefStartUrls().isEmpty()
 		&& _lastActivePrimaryWindow
 		&& !_lastActivePrimaryWindow->locked()) {
-		auto interprets = QStringList();
 		auto paths = QStringList();
 		cRefStartUrls() = ranges::views::all(
 			cRefStartUrls()
 		) | ranges::views::filter([&](const QUrl &url) {
-			if (url.scheme() == u"interpret"_q) {
-				interprets.append(url.path());
-				return false;
-			} else if (url.isLocalFile()) {
+			if (url.isLocalFile()) {
 				paths.append(url.toLocalFile());
 				return false;
 			}
 			return true;
 		}) | ranges::to<QList<QUrl>>;
-		if (!interprets.isEmpty() || !paths.isEmpty()) {
+		if (!paths.isEmpty()) {
 			_lastActivePrimaryWindow->widget()->handleStartFiles(
-				std::move(interprets),
 				std::move(paths));
 		}
+	}
+}
+
+QPointer<QWidget> Application::checkStartUrlsActivating() {
+	if (_startUrlActivated) {
+		checkStartUrls();
+		return nullptr;
+	}
+	_startUrlActivated.emplace();
+	checkStartUrls();
+	return *base::take(_startUrlActivated);
+}
+
+void Application::registerWindowActivation(not_null<QWidget*> window) {
+	if (_startUrlActivated) {
+		*_startUrlActivated = window.get();
 	}
 }
 
@@ -1406,6 +1469,7 @@ bool Application::someSessionExists() const {
 }
 
 void Application::checkAutoLock(crl::time lastNonIdleTime) {
+	// Cached verification stops planted bytes from disarming idle locking.
 	if (!_domain->local().hasLocalPasscode()
 		|| passcodeLocked()
 		|| !someSessionExists()) {
@@ -1486,7 +1550,7 @@ Window::Controller *Application::separateWindowFor(
 	return nullptr;
 }
 
-Window::Controller *Application::ensureSeparateWindowFor(
+not_null<Window::Controller*> Application::ensureSeparateWindowFor(
 		Window::SeparateId id,
 		MsgId showAtMsgId) {
 	const auto activate = [&](not_null<Window::Controller*> window) {
@@ -1504,6 +1568,8 @@ Window::Controller *Application::ensureSeparateWindowFor(
 		}
 		return activate(existing);
 	}
+
+	Assert(Window::CanShowSeparateWindow(id));
 
 	const auto result = _windows.emplace(
 		id,
@@ -1789,7 +1855,8 @@ bool Application::closeActiveWindow() {
 	} else if (_iv->closeActive()
 		|| Iv::Editor::CloseActiveWindow()
 		|| calls().closeCurrentActiveCall()
-		|| (_savedWindows && _savedWindows->closeActiveShell())) {
+		|| (_savedWindows && _savedWindows->closeActiveShell())
+		|| Wallet::CloseActiveWindow()) {
 		return true;
 	} else if (const auto window = activeWindow()) {
 		if (window->widget()->isActive()) {
@@ -1806,7 +1873,8 @@ bool Application::minimizeActiveWindow() {
 		return true;
 	} else if (_iv->minimizeActive()
 		|| Iv::Editor::MinimizeActiveWindow()
-		|| calls().minimizeCurrentActiveCall()) {
+		|| calls().minimizeCurrentActiveCall()
+		|| Wallet::MinimizeActiveWindow()) {
 		return true;
 	} else if (const auto window = activeWindow()) {
 		if (window->widget()->isActive()) {
@@ -1855,7 +1923,10 @@ QPoint Application::getPointForCallPanelCenter() const {
 	if (const auto window = activeWindow()) {
 		return window->getPointForCallPanelCenter();
 	}
-	return QGuiApplication::primaryScreen()->geometry().center();
+	// When the last monitor is removed QGuiApplication has no screens at
+	// all, so primaryScreen() is nullptr.
+	const auto primary = QGuiApplication::primaryScreen();
+	return primary ? primary->geometry().center() : QPoint();
 }
 
 bool Application::isSharingScreen() const {
@@ -1902,8 +1973,8 @@ void Application::unregisterLeaveSubscription(not_null<QWidget*> widget) {
 		if (i != end(_leaveFilters)) {
 			i->second.registered = std::move(
 				i->second.registered
-			) | ranges::actions::remove_if([&](QPointer<QWidget> widget) {
-				const auto pointer = widget.data();
+			) | ranges::actions::remove_if([&](QPointer<QWidget> weak) {
+				const auto pointer = weak.data();
 				return !pointer || (pointer == widget);
 			});
 		}
@@ -2014,6 +2085,7 @@ void Application::startShortcuts() {
 			return true;
 		});
 		request->check(Command::Lock) && request->handle([=] {
+			// Keep manual locking available for a verified app lock.
 			if (!passcodeLocked() && _domain->local().hasLocalPasscode()) {
 				maybeLockByPasscode();
 				return true;
@@ -2056,6 +2128,17 @@ void Application::RegisterUrlScheme() {
 		.arguments = arguments,
 		.protocol = u"tonsite"_q,
 		.protocolName = u"TonSite Link"_q,
+		.shortAppName = u"tdesktop"_q,
+		.longAppName = QCoreApplication::applicationName(),
+		.displayAppName = AppName.utf16(),
+		.displayAppDescription = AppName.utf16(),
+	});
+
+	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
+		.executable = Platform::ExecutablePathForShortcuts(),
+		.arguments = arguments,
+		.protocol = u"ton"_q,
+		.protocolName = u"Ton Link"_q,
 		.shortAppName = u"tdesktop"_q,
 		.longAppName = QCoreApplication::applicationName(),
 		.displayAppName = AppName.utf16(),
