@@ -948,7 +948,7 @@ public:
 		}
 	};
 	void refreshChatListEntry(Dialogs::Key key);
-	void removeChatListEntry(Dialogs::Key key);
+	void removeChatListEntry(Dialogs::Key key, bool keepPinned = false);
 	void refreshChatListUnreadOnTop();
 	[[nodiscard]] bool dialogsUnreadOnTop() const {
 		return _dialogsUnreadOnTop;

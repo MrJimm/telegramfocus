@@ -5663,6 +5663,11 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 
 	const auto entry = key.entry();
 	const auto history = entry->asHistory();
+	if (history && !session().isRestrictedPeerAllowed(history->peer)) {
+		// Hide the row without changing the server-backed pinned order.
+		removeChatListEntry(key, true);
+		return;
+	}
 	const auto topic = entry->asTopic();
 	const auto mainList = chatsListFor(entry);
 	auto event = ChatListEntryRefresh{ .key = key };
@@ -5739,33 +5744,48 @@ void Session::refreshChatListUnreadOnTop() {
 	}
 }
 
-void Session::removeChatListEntry(Dialogs::Key key) {
+void Session::removeChatListEntry(Dialogs::Key key, bool keepPinned) {
 	using namespace Dialogs;
 
 	const auto entry = key.entry();
-	if (!entry->inChatList()) {
-		return;
+	const auto wasInChatList = entry->inChatList();
+	if (!wasInChatList) {
+		if (keepPinned || !entry->folderKnown()) {
+			return;
+		}
+		const auto hasPin = entry->isPinnedDialog(0)
+			|| ranges::any_of(_chatsFilters->list(), [&](const ChatFilter &filter) {
+				return filter.id() && entry->isPinnedDialog(filter.id());
+			});
+		if (!hasPin) {
+			return;
+		}
 	}
 	Assert(entry->folderKnown());
 
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
-		if (id && entry->inChatList(id)) {
-			entry->removeFromChatList(id, chatsFilters().chatsList(id));
-			_chatListEntryRefreshes.fire(ChatListEntryRefresh{
-				.key = key,
-				.filterId = id,
-				.existenceChanged = true
-			});
+		const auto hadRow = id && entry->inChatList(id);
+		if (id && (hadRow || (!keepPinned && entry->isPinnedDialog(id)))) {
+			entry->removeFromChatList(id, chatsFilters().chatsList(id), keepPinned);
+			if (hadRow) {
+				_chatListEntryRefreshes.fire(ChatListEntryRefresh{
+					.key = key,
+					.filterId = id,
+					.existenceChanged = true
+				});
+			}
 		}
 	}
 	const auto mainList = chatsListFor(entry);
-	entry->removeFromChatList(0, mainList);
-	_chatListEntryRefreshes.fire(ChatListEntryRefresh{
-		.key = key,
-		.existenceChanged = true
-	});
-	if (_contactsList.contains(key)) {
+	entry->removeFromChatList(0, mainList, keepPinned);
+	if (wasInChatList) {
+		_chatListEntryRefreshes.fire(ChatListEntryRefresh{
+			.key = key,
+			.existenceChanged = true
+		});
+	}
+	if (wasInChatList && _contactsList.contains(key)) {
 		if (!_contactsNoChatsList.contains(key)) {
 			_contactsNoChatsList.addByName(key);
 		}

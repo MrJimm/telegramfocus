@@ -372,7 +372,8 @@ void Entry::setChatListExistence(bool exists) {
 		owner().refreshChatListEntry(this);
 		updateChatListEntry();
 	} else {
-		owner().removeChatListEntry(this);
+		// An empty archive can be hidden without losing its server-side pin.
+		owner().removeChatListEntry(this, asFolder() != nullptr);
 	}
 }
 
@@ -456,8 +457,9 @@ not_null<Row*> Entry::addToChatList(
 
 void Entry::removeFromChatList(
 		FilterId filterId,
-		not_null<MainList*> list) {
-	if (isPinnedDialog(filterId)) {
+		not_null<MainList*> list,
+		bool keepPinned) {
+	if (!keepPinned && isPinnedDialog(filterId)) {
 		list->pinned()->setPinned(this, false);
 		owner().notifyPinnedDialogsOrderUpdated();
 	}

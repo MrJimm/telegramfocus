@@ -3460,9 +3460,6 @@ bool History::trackUnreadMessages() const {
 }
 
 bool History::shouldBeInChatList() const {
-	if (!session().isRestrictedPeerAllowed(peer)) {
-		return false;
-	}
 	if (peer->migrateTo() || !folderKnown()) {
 		return false;
 	} else if (const auto community = peer->asChannel()

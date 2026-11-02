@@ -113,7 +113,8 @@ public:
 	void setColorIndexForFilterId(FilterId, std::optional<uint8>);
 	void removeFromChatList(
 		FilterId filterId,
-		not_null<MainList*> list);
+		not_null<MainList*> list,
+		bool keepPinned = false);
 	void removeChatListEntryByLetter(FilterId filterId, QChar letter);
 	void addChatListEntryByLetter(
 		FilterId filterId,

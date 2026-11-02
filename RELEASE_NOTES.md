@@ -1,39 +1,36 @@
-# Telegram Focus 1.2.0
+# Telegram Focus 1.3.0
 
-Based on Telegram Desktop 7.1.2.
+Based on Telegram Desktop 7.3.3. Release tag: `v7.3.3_focus1.3.0`.
 
-## Highlights
+## Changes
 
-- Added publishable Windows x64 installer and portable builds.
-- Renamed the packaged Windows executable to `TelegramFocus.exe`.
-- Changed the Windows product name to `Telegram Focus Desktop` and the publisher to `MrJimmsky`.
-- Added the Telegram Focus three-triangle logo to the executable, installer, live taskbar icon, and system tray icon.
-- Added the unique Windows AppUserModelID `MrJimmsky.TelegramFocusDesktop` so Telegram Focus is not grouped with official Telegram Desktop.
-- Added a dedicated installer AppId and `%APPDATA%\Telegram Focus` installation directory to avoid collisions with official Telegram Desktop.
-- Added the `TelegramForcePortable` marker to the portable package. Portable data is stored under `TelegramForcePortable\tdata`.
+- Updated the upstream Telegram Desktop baseline from 7.1.2 to 7.3.3, including its IPC security fixes.
+- Preserved Allowlist filtering for chats, stories, search, sharing and notifications.
+- Fixed hidden chats losing their pinned state. Reordering visible pins now preserves the complete server-backed pin order, including hidden chats.
+- Preserved pinned state when the archive entry is hidden, while keeping explicit unpinning and genuine removals functional.
+- Kept wallet features outside Allowlist, with standard upstream recipient search and transfer behavior.
 
 ## Downloads
 
-- `TelegramFocus-7.1.2-x64-setup.exe` - regular Windows x64 installer.
-- `TelegramFocus-7.1.2-x64-portable.zip` - portable Windows x64 version.
-- `Telegram-Focus-v7.1.2_focus1.2.0-macOS-universal.dmg` - universal macOS build for Apple Silicon and Intel.
-- `SHA256SUMS.txt` - SHA-256 checksums for all release packages.
-- `build-info.txt` - Windows build configuration and verification details.
+- `Telegram-Focus-v7.3.3_focus1.3.0-macOS-universal.dmg` — macOS application for Apple Silicon and Intel.
+- `SHA256SUMS.txt` — SHA-256 checksums for the release files.
+- `BUILD_INFO.txt` — source revision, dependency revisions, build configuration and verification scope.
 
-## Verification
+This release package contains a macOS build. The Windows installer and portable packages from 1.2.0 remain available in that earlier release; they are not builds of this version.
 
-- Installer and portable executables were smoke-tested on Windows x64.
-- The installed and portable executable hashes match the verified build output.
-- The runtime taskbar icon was checked from both installed and portable processes.
-- Portable data was created only under `TelegramForcePortable\tdata`.
-- Silent installer installation and complete uninstallation were verified.
-- The macOS application is rebuilt from the release commit as a universal `arm64` and `x86_64` bundle.
-- The macOS application bundle and DMG pass structural, signature, and checksum verification.
+## Install or update on macOS
 
-## Important notes
+1. Fully quit Telegram Focus and the regular Telegram Desktop client.
+2. Open the DMG and drag **Telegram Focus.app** into **Applications**. Choose **Replace** when updating.
+3. Launch **Telegram Focus** from **Applications**. Keep your existing `tdata`; deleting it is not part of an update.
 
-- The Windows binaries are unsigned. Windows SmartScreen may display an "Unknown publisher" warning.
-- The macOS application is ad hoc signed and is not notarized by Apple. Gatekeeper may require opening it through Finder with Control-click, then **Open**.
-- The macOS build requires macOS 12 or later.
-- Automatic updates and crash reporting are disabled in this build.
-- Telegram Focus behavior on macOS is unchanged in this release; the macOS package is rebuilt so every published artifact corresponds to the same release source.
+The application requires macOS 12 or later. It is ad hoc signed and is not notarized by Apple, so macOS may require an explicit first-launch approval in Privacy & Security.
+
+## Verification and limitations
+
+- The pin-preservation fix passed 273 assertions across 51 stages in an isolated Debug run with synthetic users and intercepted application RPCs. No real account or funds were used.
+- The release application is universal (`arm64` and `x86_64`). Startup checks cover native Apple Silicon and Intel code through Rosetta, not physical Intel hardware.
+- Automatic updates and crash reporting are disabled. Install future releases manually.
+- On macOS, Focus shares the regular Telegram Desktop local data directory. Use only one of these desktop clients at a time.
+- Allowlist is a client-side productivity filter. A queued notification reply or bot-button action can still execute after a chat is removed from Allowlist; this known limitation is not fixed in 1.3.0.
+- The macOS dependency preparation script still uses predictable shared temporary files. Build on a trusted machine; hardening that build-time path is outside this release's pin-preservation fix.

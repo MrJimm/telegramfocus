@@ -46,6 +46,8 @@ I mainly develop for Linux and Windows, so I do not have an Apple Developer acco
 
 Telegram Focus is available for Windows x64 as both a regular installer and a portable package:
 
+The available Windows packages are still version 1.2.0, based on Telegram Desktop 7.1.2. They do not include the fixes in 1.3.0.
+
 - [Download the Windows installer][windows_installer]
 - [Download the portable Windows version][windows_portable]
 - [View all releases][releases]
@@ -117,7 +119,7 @@ The source code is published under GPLv3 with the OpenSSL exception. See the [li
 [telegram_proto]: https://core.telegram.org/mtproto
 [license]: LICENSE
 [releases]: https://github.com/MrJimm/telegramfocus/releases
-[macos_download]: https://github.com/MrJimm/telegramfocus/releases/download/v7.1.2_focus1.2.0/Telegram-Focus-v7.1.2_focus1.2.0-macOS-universal.dmg
+[macos_download]: https://github.com/MrJimm/telegramfocus/releases/download/v7.3.3_focus1.3.0/Telegram-Focus-v7.3.3_focus1.3.0-macOS-universal.dmg
 [windows_installer]: https://github.com/MrJimm/telegramfocus/releases/download/v7.1.2_focus1.2.0/TelegramFocus-7.1.2-x64-setup.exe
 [windows_portable]: https://github.com/MrJimm/telegramfocus/releases/download/v7.1.2_focus1.2.0/TelegramFocus-7.1.2-x64-portable.zip
 [win]: docs/building-win.md
