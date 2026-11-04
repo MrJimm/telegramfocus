@@ -1147,6 +1147,7 @@ mac:
     lipo -create out.arm64/libvpx.a out.x86_64/libvpx.a -output libvpx.a
 
     make install DIST_DIR=$USED_PREFIX
+    sed -i '' 's|^prefix=.*|prefix=${pcfiledir}/../..|' "$USED_PREFIX/lib/pkgconfig/vpx.pc"
 """)
 
 stage('liblcms2', """
@@ -1210,6 +1211,7 @@ win:
 depends:patches/build_ffmpeg_win.sh
     bash --login ../patches/build_ffmpeg_win.sh
 mac:
+depends:local/lib/pkgconfig/vpx.pc
     export PKG_CONFIG_PATH=$USED_PREFIX/lib/pkgconfig
 
     configureFFmpeg() {
@@ -1342,8 +1344,14 @@ mac:
         # FFmpeg embeds its configure command in the descriptive build string.
         python3 -c '
 from pathlib import Path
-import os
+import os, re
 config = Path("config.h")
+requested = re.findall(r"--enable-(decoder|encoder|parser|demuxer|muxer|filter|protocol|hwaccel|bsf)=([A-Za-z0-9_,-]+)", config.read_text())
+if not requested: raise SystemExit("FFmpeg configuration has no explicit required components.")
+enabled = set(re.findall(r"^#define (CONFIG_[A-Z0-9_]+) 1$", Path("config_components.h").read_text(), re.MULTILINE))
+missing = [name + "_" + kind for kind, names in requested for name in names.split(",") if "CONFIG_" + name.upper().replace("-", "_") + "_" + kind.upper() not in enabled]
+if missing: raise SystemExit("Required FFmpeg components disabled: " + ", ".join(missing))
+print("Verified requested FFmpeg components:", sum(len(names.split(",")) for _, names in requested))
 config.write_text("".join(
 line.replace(os.environ["ROOT_DIR"], "/usr/src/telegram-focus")
 if line.startswith("#define FFMPEG_CONFIGURATION ") else line
