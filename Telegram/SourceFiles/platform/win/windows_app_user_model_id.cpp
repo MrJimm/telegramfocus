@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/win/base_windows_winrt.h"
 #include "core/launcher.h"
 
+#include <QtCore/QFileInfo>
+
 #include <propvarutil.h>
 #include <propkey.h>
 
@@ -207,14 +209,22 @@ QString systemShortcutPath() {
 	return QString();
 }
 
-void CleanupShortcut() {
+namespace {
+
+QString portableShortcutPath(const QString &root) {
+	return root
+		+ u"Telegram Focus Portable/"_q
+		+ QString::fromLatin1(Core::Launcher::Instance().instanceHash())
+		+ u"/Telegram Focus.lnk"_q;
+}
+
+void cleanupOwnedShortcut(const QString &path) {
 	const auto myid = MyExecutablePathId();
 	if (!myid) {
 		return;
 	}
 
-	QString path = systemShortcutPath() + u"TelegramFocus.lnk"_q;
-	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
+	const auto p = QDir::toNativeSeparators(path).toStdWString();
 
 	DWORD attributes = GetFileAttributes(p.c_str());
 	if (attributes >= 0xFFFFFFF) return; // file does not exist
@@ -230,7 +240,7 @@ void CleanupShortcut() {
 		return;
 	}
 
-	auto hr = persistFile->Load(p.c_str(), STGM_READWRITE);
+	auto hr = persistFile->Load(p.c_str(), STGM_READ);
 	if (!SUCCEEDED(hr)) return;
 
 	WCHAR szGotPath[MAX_PATH];
@@ -238,7 +248,19 @@ void CleanupShortcut() {
 	if (!SUCCEEDED(hr)) return;
 
 	if (GetUniqueFileId(szGotPath) == myid) {
+		persistFile = nullptr;
+		shellLink = nullptr;
 		QFile().remove(path);
+	}
+}
+
+} // namespace
+
+void CleanupShortcut() {
+	const auto root = systemShortcutPath();
+	if (!root.isEmpty()) {
+		cleanupOwnedShortcut(portableShortcutPath(root));
+		cleanupOwnedShortcut(root + u"TelegramFocus.lnk"_q);
 	}
 }
 
@@ -350,11 +372,12 @@ bool checkInstalled(QString path = {}) {
 }
 
 bool ValidateShortcut() {
-	QString path = systemShortcutPath();
-	if (path.isEmpty() || cExeName().isEmpty()) {
+	const auto root = systemShortcutPath();
+	if (root.isEmpty() || cExeName().isEmpty()) {
 		return false;
 	}
 
+	auto path = root;
 	if (cAlphaVersion()) {
 		path += u"TelegramAlpha.lnk"_q;
 		if (validateShortcutAt(path)) {
@@ -365,12 +388,16 @@ bool ValidateShortcut() {
 			return true;
 		}
 
-		path += u"TelegramFocus.lnk"_q;
+		path = portableShortcutPath(root);
 		if (validateShortcutAt(path)) {
+			cleanupOwnedShortcut(root + u"TelegramFocus.lnk"_q);
 			return true;
 		}
 	}
 
+	if (!QDir().mkpath(QFileInfo(path).absolutePath())) {
+		return false;
+	}
 	auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
 		CLSID_ShellLink);
 	if (!shellLink) {
@@ -382,7 +409,10 @@ bool ValidateShortcut() {
 		return false;
 	}
 
-	hr = shellLink->SetArguments(L"");
+	const auto arguments = Core::Launcher::Instance().customWorkingDir()
+		? u"-workdir \"%1\""_q.arg(cWorkingDir()).toStdWString()
+		: std::wstring();
+	hr = shellLink->SetArguments(arguments.c_str());
 	if (!SUCCEEDED(hr)) {
 		return false;
 	}
@@ -460,6 +490,9 @@ bool ValidateShortcut() {
 		return false;
 	}
 
+	if (!cAlphaVersion()) {
+		cleanupOwnedShortcut(root + u"TelegramFocus.lnk"_q);
+	}
 	LOG(("App Info: Shortcut created and validated at \"%1\"").arg(path));
 	return true;
 }

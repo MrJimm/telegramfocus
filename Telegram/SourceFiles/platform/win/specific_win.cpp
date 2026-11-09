@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/version.h"
 
 #include <QtCore/QOperatingSystemVersion>
+#include <QtCore/QSettings>
 #include <QtWidgets/QApplication>
 #include <QtGui/QDesktopServices>
 #include <QtGui/QWindow>
@@ -88,6 +89,50 @@ bool themeInited = false;
 bool finished = true;
 QMargins simpleMargins, margins;
 HICON bigIcon = 0, smallIcon = 0, overlayIcon = 0;
+
+#ifdef TDESKTOP_FOCUS_BUILD
+const auto kFocusSchemes = std::array{ u"tg"_q, u"ton"_q, u"tonsite"_q };
+const auto kFocusName = u"Telegram Focus Desktop"_q;
+const auto kFocusCapabilities = u"TelegramFocus/Capabilities"_q;
+const auto kFocusAssociations = kFocusCapabilities + u"/UrlAssociations/"_q;
+const auto kFocusRegisteredApp = u"RegisteredApplications/"_q + kFocusName;
+const auto kFocusCapabilityPath = u"Software\\TelegramFocus\\Capabilities"_q;
+
+QString FocusProtocolId(const QString &scheme) {
+	return u"telegramfocus."_q + scheme;
+}
+
+QString FocusExecutableCommandPrefix() {
+	const auto executable = QDir::toNativeSeparators(
+		Platform::ExecutablePathForShortcuts());
+	return '"' + executable + u"\" "_q;
+}
+
+void UnregisterOwnedFocusUrlSchemes() {
+	if (cExeName().isEmpty()) {
+		return;
+	}
+	QSettings registry(u"HKEY_CURRENT_USER\\Software"_q, QSettings::NativeFormat);
+	const auto prefix = FocusExecutableCommandPrefix();
+	for (const auto &scheme : kFocusSchemes) {
+		const auto protocol = u"Classes/"_q + FocusProtocolId(scheme);
+		const auto command = registry.value(
+			protocol + u"/shell/open/command/Default"_q).toString();
+		if (command.startsWith(prefix, Qt::CaseInsensitive)) {
+			registry.remove(protocol);
+			registry.remove(kFocusAssociations + scheme);
+		}
+	}
+	registry.beginGroup(kFocusAssociations);
+	const auto remaining = registry.childKeys();
+	registry.endGroup();
+	if (remaining.isEmpty()
+		&& registry.value(kFocusRegisteredApp).toString() == kFocusCapabilityPath) {
+		registry.remove(kFocusRegisteredApp);
+		registry.remove(kFocusCapabilities);
+	}
+}
+#endif
 
 [[nodiscard]] uint64 WindowIdFromHWND(HWND value) {
 	return (reinterpret_cast<uint64>(value) & 0xFFFFFFFFULL);
@@ -196,13 +241,38 @@ bool ManageAppLink(
 		}
 		return false;
 	}
-	const auto lnk = QString::fromWCharArray(startupFolder)
-		+ '\\'
-		+ AppFile.utf16()
-		+ u".lnk"_q;
+	const auto shortcutDir = QString::fromWCharArray(startupFolder) + '/';
+	const auto lnk = shortcutDir + u"Telegram Focus.lnk"_q;
+	const auto legacyLnk = shortcutDir + u"Telegram.lnk"_q;
+	const auto exe = QDir::toNativeSeparators(cExeDir() + cExeName());
+	const auto ownsLink = [&](const QString &path) {
+		if (!QFile::exists(path)) {
+			return false;
+		}
+		const auto link = base::WinRT::TryCreateInstance<IShellLink>(
+			CLSID_ShellLink);
+		if (!link) {
+			return false;
+		}
+		const auto file = link.try_as<IPersistFile>();
+		const auto native = QDir::toNativeSeparators(path).toStdWString();
+		if (!file || FAILED(file->Load(native.c_str(), STGM_READ))) {
+			return false;
+		}
+		auto target = std::array<WCHAR, MAX_PATH>{};
+		if (FAILED(link->GetPath(target.data(), MAX_PATH, nullptr, 0))) {
+			return false;
+		}
+		const auto actual = QDir::toNativeSeparators(
+			QDir::cleanPath(QString::fromWCharArray(target.data())));
+		return actual.compare(exe, Qt::CaseInsensitive) == 0;
+	};
+	const auto removeOwned = [&](const QString &path) {
+		return !ownsLink(path) || QFile::remove(path);
+	};
 	if (!create) {
-		QFile::remove(lnk);
-		return true;
+		const auto removed = removeOwned(lnk);
+		return removeOwned(legacyLnk) && removed;
 	}
 	const auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
 		CLSID_ShellLink);
@@ -210,7 +280,8 @@ bool ManageAppLink(
 		if (!silent) LOG(("App Error: could not create instance of IID_IShellLink %1").arg(hr));
 		return false;
 	}
-	QString exe = QDir::toNativeSeparators(cExeDir() + cExeName()), dir = QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath());
+	const auto dir = QDir::toNativeSeparators(
+		QDir(cWorkingDir()).absolutePath());
 	shellLink->SetArguments(args);
 	shellLink->SetPath(exe.toStdWString().c_str());
 	shellLink->SetWorkingDirectory(dir.toStdWString().c_str());
@@ -238,6 +309,9 @@ bool ManageAppLink(
 		if (!silent) LOG(("App Error: could not save IPersistFile to path %1").arg(lnk));
 		return false;
 	}
+	if (!removeOwned(legacyLnk) && !silent) {
+		LOG(("App Error: could not remove the legacy shortcut %1").arg(legacyLnk));
+	}
 	return true;
 }
 
@@ -250,6 +324,8 @@ QString psAppDataPath() {
 		QDir appData(QString::fromStdWString(std::wstring(wstrPath)));
 #ifdef OS_WIN_STORE
 		return appData.absolutePath() + u"/Telegram Desktop UWP/"_q;
+#elif defined TDESKTOP_FOCUS_BUILD
+		return appData.absolutePath() + u"/Telegram Focus/"_q;
 #else // OS_WIN_STORE
 		return appData.absolutePath() + '/' + AppName.utf16() + '/';
 #endif // OS_WIN_STORE
@@ -258,6 +334,9 @@ QString psAppDataPath() {
 }
 
 QString psAppDataPathOld() {
+#ifdef TDESKTOP_FOCUS_BUILD
+	return QString();
+#else
 	static const int maxFileLen = MAX_PATH * 10;
 	WCHAR wstrPath[maxFileLen];
 	if (GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
@@ -265,10 +344,14 @@ QString psAppDataPathOld() {
 		return appData.absolutePath() + '/' + AppNameOld.utf16() + '/';
 	}
 	return QString();
+#endif
 }
 
 void psDoCleanup() {
 	try {
+#ifdef TDESKTOP_FOCUS_BUILD
+		UnregisterOwnedFocusUrlSchemes();
+#endif
 		Platform::AutostartToggle(false);
 		psSendToMenu(false, true);
 		AppUserModelId::CleanupShortcut();
@@ -356,6 +439,31 @@ int psFixPrevious() {
 }
 
 namespace Platform {
+
+#ifdef TDESKTOP_FOCUS_BUILD
+void RegisterFocusUrlSchemes(const QString &arguments) {
+	QSettings registry(u"HKEY_CURRENT_USER\\Software"_q, QSettings::NativeFormat);
+	const auto executable = QDir::toNativeSeparators(
+		ExecutablePathForShortcuts());
+	const auto command = FocusExecutableCommandPrefix()
+		+ arguments + u" -- \"%1\""_q;
+	for (const auto &scheme : kFocusSchemes) {
+		const auto id = FocusProtocolId(scheme);
+		const auto protocol = u"Classes/"_q + id;
+		registry.setValue(protocol + u"/Default"_q, kFocusName);
+		registry.setValue(protocol + u"/URL Protocol"_q, QString());
+		registry.setValue(
+			protocol + u"/DefaultIcon/Default"_q,
+			'"' + executable + u",1\""_q);
+		registry.setValue(protocol + u"/shell/open/command/Default"_q, command);
+		registry.setValue(kFocusAssociations + scheme, id);
+	}
+	registry.setValue(kFocusCapabilities + u"/ApplicationName"_q, kFocusName);
+	registry.setValue(kFocusCapabilities + u"/ApplicationDescription"_q, kFocusName);
+	registry.setValue(kFocusRegisteredApp, kFocusCapabilityPath);
+}
+#endif
+
 namespace ThirdParty {
 namespace {
 

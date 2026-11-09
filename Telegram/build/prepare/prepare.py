@@ -1624,12 +1624,18 @@ release:
 """)
 
 if win and qt >= '6':
+    stage('qt6_patches', """
+    git clone https://github.com/desktop-app/patches.git qt6_patches
+    cd qt6_patches
+    git checkout 9aadc4e648f775d2045b648623358f8903418f87
+""")
+
     # Windows 7 and 8 support for qtbase, and the ANGLE backend Qt 6 dropped.
     stage('qt6_windows7', """
 win32_win64:
     git clone https://github.com/desktop-app/qt6_windows7_patches.git qt6_windows7
     cd qt6_windows7
-    git checkout 9ce1ffe051161a22f7e78f715b042c773f868e59
+    git checkout 755326f47997f402b4d907eb7c08307a5a6120aa
 """)
 
 if win:
@@ -1724,8 +1730,12 @@ else: # qt > '6'
     git clone -b """ + branch + """ https://github.com/qt/qt5.git qt_$QT
     cd qt_$QT
     git submodule update --init --recursive --progress qtbase qtimageformats qtshadertools qtsvg
+!win:
 depends:patches/qtbase_""" + qt + """/*.patch
 depends:patches/qtsvg_""" + qt + """/*.patch
+win:
+depends:qt6_patches/qtbase_""" + qt + """/*.patch
+depends:qt6_patches/qtsvg_""" + qt + """/*.patch
 win32_win64:
 depends:qt6_windows7/*.patch
 version:""" + computeFileHash(qtAngleCmake) + """
@@ -1782,7 +1792,7 @@ win32_win64:
         )
     )
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
+    for /r %%i in (..\\..\\qt6_patches\\qtbase_%QT%\\*) do (
         git apply %%i --ignore-whitespace -v
         if errorlevel 1 (
             echo ERROR: Applying patch %%~nxi failed!
@@ -1790,7 +1800,7 @@ win:
         )
     )
     cd ..\\qtsvg
-    for /r %%i in (..\\..\\patches\\qtsvg_%QT%\\*) do (
+    for /r %%i in (..\\..\\qt6_patches\\qtsvg_%QT%\\*) do (
         git apply %%i --ignore-whitespace -v
         if errorlevel 1 (
             echo ERROR: Applying patch %%~nxi failed!

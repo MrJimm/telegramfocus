@@ -112,6 +112,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <ksandbox.h>
 
+#if defined Q_OS_WIN && defined TDESKTOP_FOCUS_BUILD
+namespace Platform {
+void RegisterFocusUrlSchemes(const QString &arguments);
+} // namespace Platform
+#endif
+
 namespace Core {
 namespace {
 
@@ -146,6 +152,9 @@ base::options::toggle OptionSkipUrlSchemeRegister({
 	.id = kOptionSkipUrlSchemeRegister,
 	.name = "Skip URL scheme register",
 	.description = "Don't register tg:// URL scheme automatically.",
+#if defined Q_OS_WIN && defined TDESKTOP_FOCUS_BUILD
+	.defaultValue = true,
+#endif
 });
 
 } // namespace
@@ -2111,16 +2120,21 @@ void Application::RegisterUrlScheme() {
 	const auto arguments = Launcher::Instance().customWorkingDir()
 		? u"-workdir \"%1\""_q.arg(cWorkingDir())
 		: QString();
-
+#if defined Q_OS_WIN && defined TDESKTOP_FOCUS_BUILD
+	Platform::RegisterFocusUrlSchemes(arguments);
+#else
+	const auto shortAppName = u"tdesktop"_q;
+	const auto longAppName = QCoreApplication::applicationName();
+	const auto displayAppName = AppName.utf16();
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
 		.executable = Platform::ExecutablePathForShortcuts(),
 		.arguments = arguments,
 		.protocol = u"tg"_q,
 		.protocolName = u"Telegram Link"_q,
-		.shortAppName = u"tdesktop"_q,
-		.longAppName = QCoreApplication::applicationName(),
-		.displayAppName = AppName.utf16(),
-		.displayAppDescription = AppName.utf16(),
+		.shortAppName = shortAppName,
+		.longAppName = longAppName,
+		.displayAppName = displayAppName,
+		.displayAppDescription = displayAppName,
 	});
 
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
@@ -2128,10 +2142,10 @@ void Application::RegisterUrlScheme() {
 		.arguments = arguments,
 		.protocol = u"tonsite"_q,
 		.protocolName = u"TonSite Link"_q,
-		.shortAppName = u"tdesktop"_q,
-		.longAppName = QCoreApplication::applicationName(),
-		.displayAppName = AppName.utf16(),
-		.displayAppDescription = AppName.utf16(),
+		.shortAppName = shortAppName,
+		.longAppName = longAppName,
+		.displayAppName = displayAppName,
+		.displayAppDescription = displayAppName,
 	});
 
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
@@ -2139,11 +2153,12 @@ void Application::RegisterUrlScheme() {
 		.arguments = arguments,
 		.protocol = u"ton"_q,
 		.protocolName = u"Ton Link"_q,
-		.shortAppName = u"tdesktop"_q,
-		.longAppName = QCoreApplication::applicationName(),
-		.displayAppName = AppName.utf16(),
-		.displayAppDescription = AppName.utf16(),
+		.shortAppName = shortAppName,
+		.longAppName = longAppName,
+		.displayAppName = displayAppName,
+		.displayAppDescription = displayAppName,
 	});
+#endif
 }
 
 bool IsAppLaunched() {

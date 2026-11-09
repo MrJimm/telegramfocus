@@ -2,6 +2,15 @@
 
 Based on Telegram Desktop 7.3.3. Release tag: `v7.3.3_focus1.3.1`.
 
+## Highlights
+
+- Added Windows x64 installer and portable ZIP builds based on Telegram Desktop 7.3.3.
+- Fixed Windows uninstallation to preserve local data, including after an in-place upgrade from Focus 1.2.0.
+- Kept Windows Focus profiles and optional link handlers separate from the official Telegram Desktop client.
+- Updated Qt to 6.11.3 for Windows.
+- Restored WebM/VP9 playback and VP9 encoding for video sticker creation on macOS.
+- Included the Allowlist fix that preserves pins for hidden chats.
+
 ## Changes
 
 - Fixed missing WebM/VP9 emoji, video-sticker and video playback in the macOS 1.3.0 build.
@@ -13,10 +22,10 @@ Based on Telegram Desktop 7.3.3. Release tag: `v7.3.3_focus1.3.1`.
 ## Downloads
 
 - `Telegram-Focus-v7.3.3_focus1.3.1-macOS-universal.dmg` — macOS application for Apple Silicon and Intel.
+- `TelegramFocus-7.3.3-x64-setup.exe` — Windows x64 installer.
+- `TelegramFocus-7.3.3-x64-portable.zip` — Windows x64 portable package.
 - `SHA256SUMS.txt` — SHA-256 checksums for the release files.
-- `BUILD_INFO.txt` — source revision, dependency revisions, build configuration and verification scope.
-
-This release package contains a macOS build. The Windows installer and portable packages from 1.2.0 remain available in that earlier release; they are not builds of this version.
+- `BUILD_INFO.txt` — macOS source revision, dependency revisions, build configuration and verification scope.
 
 ## Install or update on macOS
 
@@ -30,7 +39,7 @@ The application requires macOS 12 or later. It is ad hoc signed and is not notar
 
 - Media checks and their exact scope are recorded in `BUILD_INFO.txt`. No real account or funds are used in the isolated checks.
 - The included pin-preservation code matches the earlier isolated Debug run with 273 passing assertions across 51 stages.
-- The release application is universal (`arm64` and `x86_64`). Startup checks cover native Apple Silicon and Intel code through Rosetta, not physical Intel hardware.
+- The macOS application is universal (`arm64` and `x86_64`). Startup checks cover native Apple Silicon and Intel code through Rosetta, not physical Intel hardware.
 - Automatic updates and crash reporting are disabled. Install future releases manually.
 - On macOS, Focus shares the regular Telegram Desktop local data directory. Use only one of these desktop clients at a time.
 - Allowlist is a client-side productivity filter. A queued notification reply or bot-button action can still execute after a chat is removed from Allowlist; this known limitation is not fixed in 1.3.1.
