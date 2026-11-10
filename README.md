@@ -44,9 +44,7 @@ I mainly develop for Linux and Windows, so I do not have an Apple Developer acco
 
 ### Windows
 
-Telegram Focus is available for Windows x64 as both a regular installer and a portable package:
-
-The available Windows packages are still version 1.2.0, based on Telegram Desktop 7.1.2. They do not include the changes in the 1.3.x releases.
+Telegram Focus 1.3.1 is available for Windows x64 as a regular installer and a portable package. Both are based on Telegram Desktop 7.3.3.
 
 - [Download the Windows installer][windows_installer]
 - [Download the portable Windows version][windows_portable]
@@ -54,7 +52,7 @@ The available Windows packages are still version 1.2.0, based on Telegram Deskto
 
 #### Installer
 
-1. Download and run [TelegramFocus-7.1.2-x64-setup.exe][windows_installer] (or download it from [releases][releases]).
+1. Download and run [TelegramFocus-7.3.3-x64-setup.exe][windows_installer]. To update from Focus 1.2.0, close Focus and install over the existing copy without running the old uninstaller.
 2. Follow the installation steps.
 3. Launch **Telegram Focus** from the Start menu or desktop shortcut.
 
@@ -62,7 +60,7 @@ The Windows binaries are currently unsigned. If Windows SmartScreen displays an 
 
 #### Portable version
 
-1. Download [TelegramFocus-7.1.2-x64-portable.zip][windows_portable] (or download it from [releases][releases]).
+1. Download [TelegramFocus-7.3.3-x64-portable.zip][windows_portable].
 2. Extract the entire archive into a folder. Do not run the application directly from the ZIP file.
 3. Run `TelegramFocus.exe` from the extracted folder.
 
@@ -120,8 +118,8 @@ The source code is published under GPLv3 with the OpenSSL exception. See the [li
 [license]: LICENSE
 [releases]: https://github.com/MrJimm/telegramfocus/releases
 [macos_download]: https://github.com/MrJimm/telegramfocus/releases/download/v7.3.3_focus1.3.1/Telegram-Focus-v7.3.3_focus1.3.1-macOS-universal.dmg
-[windows_installer]: https://github.com/MrJimm/telegramfocus/releases/download/v7.1.2_focus1.2.0/TelegramFocus-7.1.2-x64-setup.exe
-[windows_portable]: https://github.com/MrJimm/telegramfocus/releases/download/v7.1.2_focus1.2.0/TelegramFocus-7.1.2-x64-portable.zip
+[windows_installer]: https://github.com/MrJimm/telegramfocus/releases/download/v7.3.3_focus1.3.1/TelegramFocus-7.3.3-x64-setup.exe
+[windows_portable]: https://github.com/MrJimm/telegramfocus/releases/download/v7.3.3_focus1.3.1/TelegramFocus-7.3.3-x64-portable.zip
 [win]: docs/building-win.md
 [mac]: docs/building-mac.md
 [linux]: docs/building-linux.md

@@ -25,7 +25,11 @@ Based on Telegram Desktop 7.3.3. Release tag: `v7.3.3_focus1.3.1`.
 - `TelegramFocus-7.3.3-x64-setup.exe` — Windows x64 installer.
 - `TelegramFocus-7.3.3-x64-portable.zip` — Windows x64 portable package.
 - `SHA256SUMS.txt` — SHA-256 checksums for the release files.
-- `BUILD_INFO.txt` — macOS source revision, dependency revisions, build configuration and verification scope.
+- `BUILD_INFO.txt` — source revision and verification scope for each platform.
+
+## Build sources
+
+The macOS DMG was built from [`09d511cfd3`](https://github.com/MrJimm/telegramfocus/commit/09d511cfd34fb96e4e48a3f13dc1021a28a2c817). The Windows packages were built from the working tree later committed as [`a96c322c70`](https://github.com/MrJimm/telegramfocus/commit/a96c322c70f1b98b692f41ba7d57db581535c1e7), which the release tag points to.
 
 ## Install or update on macOS
 
@@ -34,6 +38,12 @@ Based on Telegram Desktop 7.3.3. Release tag: `v7.3.3_focus1.3.1`.
 3. Launch **Telegram Focus** from **Applications**. Keep your existing `tdata`; deleting it is not part of an update.
 
 The application requires macOS 12 or later. It is ad hoc signed and is not notarized by Apple, so macOS may require an explicit first-launch approval in Privacy & Security.
+
+## Install or update on Windows
+
+Close Telegram Focus before updating. To upgrade an installed copy of Focus 1.2.0, run the new installer over the existing installation without running the old uninstaller. The installer is unsigned.
+
+For the portable version, extract the whole ZIP and run `TelegramFocus.exe`. Keep the `TelegramForcePortable` folder when updating an existing portable copy.
 
 ## Verification and limitations
 
