@@ -5,7 +5,7 @@ Based on Telegram Desktop 7.3.3. Release tag: `v7.3.3_focus1.3.1`.
 ## Highlights
 
 - Added Windows x64 installer and portable ZIP builds based on Telegram Desktop 7.3.3.
-- Fixed Windows uninstallation to preserve local data, including after an in-place upgrade from Focus 1.2.0.
+- Updated the Windows uninstaller to preserve local data (`tdata`).
 - Kept Windows Focus profiles and optional link handlers separate from the official Telegram Desktop client.
 - Updated Qt to 6.11.3 for Windows.
 - Restored WebM/VP9 playback and VP9 encoding for video sticker creation on macOS.
@@ -36,8 +36,9 @@ The macOS DMG was built from [`09d511cfd3`](https://github.com/MrJimm/telegramfo
 1. Fully quit Telegram Focus and the regular Telegram Desktop client.
 2. Open the DMG and drag **Telegram Focus.app** into **Applications**. Choose **Replace** when updating.
 3. Launch **Telegram Focus** from **Applications**. Keep your existing `tdata`; deleting it is not part of an update.
+4. If macOS blocks the first launch, open **System Settings → Privacy & Security**, click **Open Anyway**, and confirm.
 
-The application requires macOS 12 or later. It is ad hoc signed and is not notarized by Apple, so macOS may require an explicit first-launch approval in Privacy & Security.
+The application requires macOS 12 or later. It is ad hoc signed and is not notarized by Apple.
 
 ## Install or update on Windows
 
@@ -47,6 +48,7 @@ For the portable version, extract the whole ZIP and run `TelegramFocus.exe`. Kee
 
 ## Verification and limitations
 
+- We inspected the installer. Upgrading from Focus 1.2.0 and then uninstalling still needs testing on Windows.
 - Media checks and their exact scope are recorded in `BUILD_INFO.txt`. No real account or funds are used in the isolated checks.
 - The included pin-preservation code matches the earlier isolated Debug run with 273 passing assertions across 51 stages.
 - The macOS application is universal (`arm64` and `x86_64`). Startup checks cover native Apple Silicon and Intel code through Rosetta, not physical Intel hardware.

@@ -34,7 +34,7 @@ Download the [universal macOS DMG][macos_download] for Apple Silicon and Intel, 
 1. Open the downloaded DMG in Finder.
 2. Drag **Telegram Focus.app** into the **Applications** folder.
 3. Open **Telegram Focus** from **Applications**.
-4. If macOS blocks the first launch, Control-click the app, choose **Open**, and confirm the action.
+4. If macOS blocks the first launch, open **System Settings → Privacy & Security**, click **Open Anyway**, and confirm.
 
 I mainly develop for Linux and Windows, so I do not have an Apple Developer account or the tools needed to notarize the app yet. The DMG still installs normally, but macOS may ask for one extra confirmation before the first launch.
 
